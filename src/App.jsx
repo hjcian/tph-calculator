@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import { TextField, Paper, Box, Button, Stack, Divider, Typography, Switch, FormControlLabel } from '@mui/material';
+import calculate_time from './Calculate_time';
 
 function App() {
   const [result, setResult] = useState(null);
@@ -36,8 +37,6 @@ function App() {
     const breadth = Number(formData.get("breadth"));
     const height = Number(formData.get("height"));
 
-    const move_t_1 = 4;
-    const move_t_long = 0.6;
     //const move_ms = Number(formData.get("move"));
     const trf_t = Number(formData.get("transform"));
     const climb_t = Number(formData.get("climb"));
@@ -75,57 +74,6 @@ function App() {
     //warehouse(x + 1, y, z);
     //}
 
-    function calculate_time() {
-
-      //
-      //  3 | I| J| K| L|
-      //  2 | H| G| F| E|
-      //  1 | A| B| C| D|
-      //  0 |ws|            
-      //     0   1  2  3
-      //
-
-      //time = 0;
-      if (z > 0) {
-        if (x == 0 && y > 0) {  //A Column
-          if (y == 1) {
-            console.log("caseA-1");
-            time += move_t_1;
-          }
-          else {
-            console.log("caseA-2");
-            time += move_t_1 + (y - 1) * move_t_long;
-          } //Each additional grid add extra 0.6s 
-        } else if (x == 1 && y > 0) {  //B Column
-          if (y == 1) {
-            console.log("caseB-1");
-            time += move_t_1 + move_t_1 + trf_t;
-          }
-          else {
-            console.log("caseB-2");
-            time += move_t_1 + move_t_1 + (y - 1) * move_t_long + trf_t;
-          }
-        } else if (x > 1 && y > 0) { //others
-
-          if (y == 1) {
-            console.log("caseC-1");
-            time += move_t_1 + (x - 1) * move_t_long + move_t_1 + trf_t;
-          }
-          else {
-            console.log("caseC-2");
-            time += move_t_1 + (x - 1) * move_t_long + move_t_1 + (y - 1) * move_t_long + trf_t;
-          }
-        }
-
-        //Vertical Movement
-        if (!(x == 0 && y == 0)) {
-          time += trf_t + z * climb_t + turn_t;
-        }
-        console.log(time);
-        return time;
-      } else return 0;
-    }
-
     /***********************
      *       Pick All      *
      ***********************/
@@ -136,7 +84,7 @@ function App() {
         for (y; y < breadth; y++) {
           for (z; z < height; z++) {
             console.log("x,y,z:", x, y, z);
-            calculate_time();
+            time = calculate_time(x, y, z, time, trf_t, climb_t, turn_t);
             // if (x > 0 && y > 0) {
             //   if()
             //   time += ((x > 1) ? (x*move_t_long) : move_t_1) + ((y > 1) ? (y*move_t_long) : move_t_1);
@@ -151,38 +99,40 @@ function App() {
         倉庫面積：{length * breadth * height} units² <br />
         Total Time: {time.toFixed(2)} s
       </Paper>)
-    } 
+    }
     /***********************
      * Pick All (Random)    *
      ***********************/
     else if ((checked_all && checked_random)) {
-      time = 0;
-
       const existing = new Set(
         storage.map((item) => `${item.x},${item.y},${item.z}`)
       );
 
+      var all_time = 0;
       while (storage.length < length * breadth * height) {
         x = getRandomInt(0, length - 1);
         y = getRandomInt(0, breadth - 1);
         z = getRandomInt(0, height - 1);
         const key = `${x},${y},${z}`;
+        
+        console.log("TIME NOW IS",time);
 
         if (!existing.has(key)) {
+          time=0;
           storage.push({ x, y, z });
           existing.add(key);
-          calculate_time();
+          all_time += calculate_time(x, y, z, time, trf_t, climb_t, turn_t);
         }
       }
       console.log(storage);
       setResult(<Paper elevation={0} style={{ alignContent: "center", backgroundColor: "lightgreen", width: '100%', minWidth: 300, minHeight: 250 }}>
         倉庫面積：{length * breadth * height} units² <br />
-        Total Time: {time.toFixed(2)} s
+        Total Time: {all_time.toFixed(2)} s
       </Paper>);
-    } 
+    }
     /***********************
      * Pick Selected       *
-     ***********************/ 
+     ***********************/
     else if ((!checked_all && !checked_random) && ((formData.get("x")) != '' && formData.get("y") != '' && formData.get("z") != '')) {
       x = Number(formData.get("x"));
       y = Number(formData.get("y"));
@@ -190,7 +140,7 @@ function App() {
 
       time = 0;
       //Horizontal Movement
-      calculate_time();
+      time = calculate_time(x, y, z, time, trf_t, climb_t, turn_t);
       // if (x == 0 && y > 0) {  //A Column
       //   console.log("caseA");
       //   if (y == 1) { time = move_t_1; }
