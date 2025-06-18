@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import { TextField, Paper, Box, Button, Stack, Divider, Typography, Switch, FormControlLabel } from '@mui/material';
-import calculate_time from './Calculate_time';
+import calculate_time from './Calculate_time.jsx';
 
 function App() {
   const [result, setResult] = useState(null);
@@ -30,7 +30,6 @@ function App() {
       setChecked_random(false);
     }
   };
-
 
   function calculate(formData) {
     const length = Number(formData.get("length"));
@@ -97,9 +96,11 @@ function App() {
       }
       setResult(<Paper elevation={0} style={{ alignContent: "center", backgroundColor: "lightgreen", width: '100%', minWidth: 300, minHeight: 250 }}>
         倉庫面積：{length * breadth * height} units² <br />
-        Total Time: {time.toFixed(2)} s
+        膠箱數量：{Math.floor((length)*(breadth-1)*(height-1)*0.9)} <br />
+        花費時間: {time.toFixed(2)} s <br/>
       </Paper>)
     }
+
     /***********************
      * Pick All (Random)    *
      ***********************/
@@ -115,8 +116,6 @@ function App() {
         z = getRandomInt(0, height - 1);
         const key = `${x},${y},${z}`;
         
-        console.log("TIME NOW IS",time);
-
         if (!existing.has(key)) {
           time=0;
           storage.push({ x, y, z });
@@ -127,11 +126,13 @@ function App() {
       console.log(storage);
       setResult(<Paper elevation={0} style={{ alignContent: "center", backgroundColor: "lightgreen", width: '100%', minWidth: 300, minHeight: 250 }}>
         倉庫面積：{length * breadth * height} units² <br />
+        膠箱數量：{Math.floor((length)*(breadth-1)*(height-1)*0.9)} <br />
         Total Time: {all_time.toFixed(2)} s
       </Paper>);
     }
+
     /***********************
-     * Pick Selected       *
+     *    Pick Selected    *
      ***********************/
     else if ((!checked_all && !checked_random) && ((formData.get("x")) != '' && formData.get("y") != '' && formData.get("z") != '')) {
       x = Number(formData.get("x"));
@@ -167,6 +168,7 @@ function App() {
       //const totaltime = moves*move_t + 
       setResult(<Paper elevation={0} style={{ alignContent: "center", backgroundColor: "lightgreen", width: '100%', minWidth: 300, minHeight: 250 }}>
         倉庫面積：{length * breadth * height} units² <br />
+        膠箱數量：{Math.floor((length)*(breadth-1)*(height-1)*0.9)} <br />
         Total Time: {time} s
       </Paper>);
     } else {
@@ -201,7 +203,7 @@ function App() {
               {/*Pick/drop ==> slide up + rotate + slide down*/}
               Pick/Drop 時間 (s): <TextField name="rotate" defaultValue={3.5} sx={{ flex: 1, width: "150px" }} />
             </Box>
-            <Divider orientation="horizontal" flexItem />
+            <Divider orientation = "horizontal" flexItem />
 
             <Stack
               direction="row"
