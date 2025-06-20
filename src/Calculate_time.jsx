@@ -1,5 +1,5 @@
-export function calculate_time(x, y, z, time, trf_t, climb_t, turn_t) {
-
+export function calculate_time(x, y, z, time, trf_t, climb_t, turn_t, mode) {
+    console.log(x, y, z);
     //
     //  3 | I| J| K| L|
     //  2 | H| G| F| E|
@@ -12,7 +12,8 @@ export function calculate_time(x, y, z, time, trf_t, climb_t, turn_t) {
 
     const move_t_1 = 4;
     const move_t_long = 0.6;
-    if (z > 0) {
+
+    if (x >= 0 && y >= 0 && z > 0) {
         if (x == 0 && y > 0) {  //A Column
             if (y == 1) {
                 console.log("caseA-1");
@@ -44,12 +45,25 @@ export function calculate_time(x, y, z, time, trf_t, climb_t, turn_t) {
         }
 
         //Vertical Movement
-        if (!(x == 0 && y == 0)) {
+        if (y != 0 && z > 0) {
             time += trf_t + z * climb_t + turn_t;
         }
         console.log(time);
-        return time;
+        return (time);
     } else return 0;
+}
+
+export function display_result(length, breadth, height, time, error) {
+    return (
+        error===true ? ("") : (
+            <>
+                貨架數量：{length * breadth * height} units <br />
+                膠箱數量（貨架的90%）：{Math.floor(length * breadth * height * 0.9)} <br />
+                花費時間：{(time * 2).toFixed(2)} s <br />
+                Maximum Throughput per Hour (TPH)：{((Math.floor(length * breadth * height * 0.9))/((time*2)/3600)).toFixed(2)} 
+            </>
+        )
+    );
 }
 
 export default calculate_time;
