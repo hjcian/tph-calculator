@@ -1,8 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import './App.css'
-import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Switch, FormControlLabel } from '@mui/material';
+import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar } from '@mui/material';
 import { calculate_time, display_result, random_storage } from './Calculate_time.jsx';
-import { v4 as uuidv4 } from 'uuid';
 import CustomizedDialogs from './Dialog.jsx';
 import InputRowsSection from './Input_Rows.jsx';
 import StorageTable from './table.jsx';
@@ -16,16 +15,17 @@ import SmartToySharpIcon from '@mui/icons-material/SmartToySharp';
 
 function App() {
   const [result, setResult] = useState(null);
-  const [checked_random_storing, setChecked_random_storing] = useState(false);
-  const [disabled, setDisabled] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('error');
   //const [storage, setStorage] = useState([]);
   const resultRef = useRef(null);
+  const container_LocationRef = useRef(null);
+  const pickingListRef = useRef(null);
   const [storageRows, setStorageRows] = useState([{ x: '', y: '', z: '' }]);
   const [pickingRows, setPickingRows] = useState([{ x: '', y: '', z: '' }]);
   const all_storage = [];
   const [pickingList, setPickingList] = useState([]);
-  const [time_moving, setTimeMoving] = useState(0);
-  const [time_relocate, setTimeRelocate] = useState(0);
   const [length, setLength] = useState(5);
   const [breadth, setBreadth] = useState(5);
   const [height, setHeight] = useState(5);
@@ -39,8 +39,6 @@ function App() {
 
   let totalTime = 0;
   let totalRelocate = 0;
-  var error = false;
-
 
   const [fieldErrors, setFieldErrors] = useState({
     length: '',
@@ -112,7 +110,6 @@ function App() {
   };
 
   const handleFinalSubmit = async () => {
-    let newStorage;
     let n = 1;
     let ninetystorage = Math.floor(length * breadth * height * 0.9);
     if (validateInputs()) {
@@ -146,14 +143,6 @@ function App() {
       }
     }
   }
-
-  // const handleInputChange = (id, field, value) => {
-  //   setRows((prevRows) =>
-  //     prevRows.map((row) =>
-  //       row.id === id ? { ...row, [field]: value } : row
-  //     )
-  //   );
-  // };
 
   const handle_calculate_all = () => {
     setPickingList(storage);
@@ -199,6 +188,26 @@ function App() {
       resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 0);
 
+    if (storage.length == 0) {
+      setTimeout(() => {
+        container_LocationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+
+      setSnackbarMessage("No Storage 無庫存");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    }
+
+    if (pickingList.length == 0) {
+      setTimeout(() => {
+        pickingListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+
+      setSnackbarMessage("No Picking List 無揀貨單");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    }
+
     let newStorage = calculate_storage;
 
     while (i < pickingList.length) {
@@ -219,216 +228,216 @@ function App() {
           {display_result(length, breadth, height, time + relocate_time, false, storage)}
         </Paper>
       )
-    } else {
-      setResult(<Paper elevation={0} ref={resultRef} style={{
-        backgroundColor: "pink", borderColor: "#fcfdfb",
-        borderWidth: 2, padding: 20, width: '100%', border: '1px solid #ccc'
-      }}
-      >{storage.length > 0 ? (pickingList.length > 0 ? <Typography>Error</Typography> : <Typography>No Picking List 無揀貨單</Typography>) : <Typography>No Storage 無庫存</Typography>}
-      </Paper>)
     }
-
     return ([time, relocate_time]);
   }
 
   return (
-    <Stack
-      gap={1}
-      maxWidth={1500}
-      width="100%"
-      minWidth={400}
-      direction="column"
-      alignItems="stretch"
-      sx={{
-        transform: 'scale(0.9)',
-        transformOrigin: 'center',
-      }}
-    >
-      <Paper elevation={0} style={{
-        backgroundColor: "white", borderColor: "#fcfdfb",
-        borderWidth: 2, padding: 20, width: '100%', border: '1px solid #ccc'
-      }}>
-        <Grid display={'flex'} gap={2} flexDirection={'column'} alignItems="flex-start">
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%">
-            <Typography variant="h5" fontWeight={"bold"} marginBottom={-2}> <WarehouseIcon /> Storage Setting 庫存設置</Typography>
-            <CustomizedDialogs />
-          </Stack>
-          <Grid borderRadius={2} display="flex" gap={1} width="100%" flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
-            Length 长度 (unit): <TextField
-              value={length}
-              onChange={(e) => handleDimensionChange('length', e.target.value)}
-              error={!!fieldErrors.length}
-              label={fieldErrors.length}
-              type="number"
-              name="length"
-              sx={{ flex: 1, width: "100px" }} />
-
-            Breadth 宽度 (unit):
-            <TextField
-              value={breadth}
-              onChange={(e) => handleDimensionChange('breadth', e.target.value)}
-              error={!!fieldErrors.breadth}
-              label={fieldErrors.breadth}
-              type="number"
-              name="breadth"
-              sx={{ flex: 1, width: "100px" }} />
-
-            Height 高度 (unit): <TextField
-              value={height}
-              onChange={(e) => handleDimensionChange('height', e.target.value)}
-              error={!!fieldErrors.height}
-              label={fieldErrors.height}
-              type="number"
-              name="height"
-              sx={{ flex: 1, width: "100px" }} />
-          </Grid>
-          <Divider orientation="horizontal" flexItem />
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-            marginBottom={-1}
-          >
-            <Typography variant="h5" fontWeight={"bold"}><EngineeringIcon /> Workstation Setting 工作站設置</Typography>
-            <Stack direction="row" alignItems="center">
-              <Typography marginRight={1}>No.of Workstation(s):</Typography>
-              <TextField disabled defaultValue={1}></TextField>
+    <>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={snackbarSeverity}
+          onClose={() => setSnackbarOpen(false)}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+      <Stack
+        gap={1}
+        maxWidth={1500}
+        width="100%"
+        minWidth={400}
+        direction="column"
+        alignItems="stretch"
+        sx={{
+          transform: 'scale(0.9)',
+          transformOrigin: 'center',
+        }}
+      >
+        <Paper elevation={0} style={{
+          backgroundColor: "white", borderColor: "#fcfdfb",
+          borderWidth: 2, padding: 20, width: '100%', border: '1px solid #ccc'
+        }}>
+          <Grid display={'flex'} gap={2} flexDirection={'column'} alignItems="flex-start">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%">
+              <Typography variant="h5" fontWeight={"bold"} marginBottom={-2}> <WarehouseIcon /> Storage Setting 庫存設置</Typography>
+              <CustomizedDialogs />
             </Stack>
-          </Stack>
-          <Divider orientation="horizontal" flexItem />
-          <Stack direction="column" marginBottom={-1} gap ={1}>
+            <Grid borderRadius={2} display="flex" gap={1} width="100%" flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
+              Length 长度 (unit): <TextField
+                value={length}
+                onChange={(e) => handleDimensionChange('length', e.target.value)}
+                error={!!fieldErrors.length}
+                label={fieldErrors.length}
+                type="number"
+                name="length"
+                sx={{ flex: 1, width: "100px" }} />
+
+              Breadth 宽度 (unit):
+              <TextField
+                value={breadth}
+                onChange={(e) => handleDimensionChange('breadth', e.target.value)}
+                error={!!fieldErrors.breadth}
+                label={fieldErrors.breadth}
+                type="number"
+                name="breadth"
+                sx={{ flex: 1, width: "100px" }} />
+
+              Height 高度 (unit): <TextField
+                value={height}
+                onChange={(e) => handleDimensionChange('height', e.target.value)}
+                error={!!fieldErrors.height}
+                label={fieldErrors.height}
+                type="number"
+                name="height"
+                sx={{ flex: 1, width: "100px" }} />
+            </Grid>
+            <Divider orientation="horizontal" flexItem />
             <Stack
               direction="row"
               justifyContent="space-between"
               alignItems="center"
               width="100%"
-
+              marginBottom={-1}
             >
-              <Typography variant="h5" fontWeight={"bold"}><SmartToySharpIcon/> AGV Setting 機器人設置</Typography>
+              <Typography variant="h5" fontWeight={"bold"}><EngineeringIcon /> Workstation Setting 工作站設置</Typography>
               <Stack direction="row" alignItems="center">
-                <Typography marginRight={1}>No.of AGV(s):</Typography>
+                <Typography marginRight={1}>No.of Workstation(s):</Typography>
                 <TextField disabled defaultValue={1}></TextField>
               </Stack>
             </Stack>
-            <Grid borderRadius={2} display="flex" gap={1} width="100%" flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
-              移動速度 (m/s): <TextField
-                name="move"
-                disabled={true}
-                sx={{ flex: 1, width: "150px" }}
-              />
-              轉向時間 (s): <TextField
-                value={trf_t}
-                onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
-                error={!!fieldErrors.trf_t}
-                label={fieldErrors.trf_t}
-                name="trf_t"
-                type='number'
-                sx={{ flex: 1, width: "150px" }} />
-              爬升時間 (s): <TextField
-                value={climb_t}
-                onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
-                error={!!fieldErrors.climb_t}
-                label={fieldErrors.climb_t}
-                name="climb_t"
-                sx={{ flex: 1, width: "150px" }} />
-              {/*Pick/drop ==> slide up + rotate + slide down*/}
-              Pick/Drop 時間 (s): <TextField
-                value={turn_t}
-                onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
-                error={!!fieldErrors.turn_t}
-                label={fieldErrors.turn_t}
-                name="turn_t"
-                sx={{ flex: 1, width: "150px" }} />
-              作業時間 (s): <TextField value={work_t}
-                onChange={(e) => setWork_t(Number(e.target.value))} name="work" sx={{ flex: 1, width: "150px" }} />
-            </Grid>
-          </Stack>
-          <Divider orientation="horizontal" flexItem />
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-            marginBottom={-1}
-          >
-            <Typography variant="h5" fontWeight={"bold"}><InventoryIcon /> Container Location 膠箱位置</Typography>
-            <Stack direction={"row"} gap={1}>
-              <Button type="button" variant="contained" disableElevation disabled={storage.length == 0} onClick={handle_delete_all} sx={{ backgroundColor: "red", width: "10" }}> <DeleteIcon />Clear All</Button>
-              <Button type="button" variant="contained" disableElevation onClick={handle_generate_random_storage} sx={{ backgroundColor: "#dd5716", width: "10" }}>Generate Storage 建立庫存 （90% Full）</Button>
+            <Divider orientation="horizontal" flexItem />
+            <Stack direction="column" marginBottom={-1} gap={1}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                width="100%"
+
+              >
+                <Typography variant="h5" fontWeight={"bold"}><SmartToySharpIcon /> AGV Setting 機器人設置</Typography>
+                <Stack direction="row" alignItems="center">
+                  <Typography marginRight={1}>No.of AGV(s):</Typography>
+                  <TextField disabled defaultValue={1}></TextField>
+                </Stack>
+              </Stack>
+              <Grid borderRadius={2} display="flex" gap={1} width="100%" flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
+                移動速度 (m/s): <TextField
+                  name="move"
+                  disabled={true}
+                  sx={{ flex: 1, width: "150px" }}
+                />
+                轉向時間 (s): <TextField
+                  value={trf_t}
+                  onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
+                  error={!!fieldErrors.trf_t}
+                  label={fieldErrors.trf_t}
+                  name="trf_t"
+                  type='number'
+                  sx={{ flex: 1, width: "150px" }} />
+                爬升時間 (s): <TextField
+                  value={climb_t}
+                  onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
+                  error={!!fieldErrors.climb_t}
+                  label={fieldErrors.climb_t}
+                  name="climb_t"
+                  sx={{ flex: 1, width: "150px" }} />
+                {/*Pick/drop ==> slide up + rotate + slide down*/}
+                Pick/Drop 時間 (s): <TextField
+                  value={turn_t}
+                  onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
+                  error={!!fieldErrors.turn_t}
+                  label={fieldErrors.turn_t}
+                  name="turn_t"
+                  sx={{ flex: 1, width: "150px" }} />
+                作業時間 (s): <TextField value={work_t}
+                  onChange={(e) => setWork_t(Number(e.target.value))} name="work" sx={{ flex: 1, width: "150px" }} />
+              </Grid>
             </Stack>
-          </Stack>
-          {storage.length > 0 && <StorageTable storage={storage} onDelete={handleDelete} />}
-
-          <InputRowsSection
-            type="storage"
-            newRow={storageRows}
-            setNewRow={setStorageRows}
-            list={storage}
-            setList={setStorage}
-            length={length}
-            breadth={breadth}
-            height={height}
-            storage={storage}
-          />
-
-          {length > 0 && breadth > 0 && height > 0 && <StorageScene storage={storage} all_storage={all_storage} />}
-          <Divider orientation="horizontal" flexItem />
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-            marginBottom={-1}
-          >
-            <Typography
-              sx={{ textAlign: 'left' }}
-              variant="h5"
-              fontWeight="bold"
+            <Divider orientation="horizontal" flexItem />
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+              marginBottom={-1}
+              ref={container_LocationRef}
             >
-              <ListAltIcon /> Picking List 揀貨單
-            </Typography>
-            <Stack direction={"row"} gap={2}>
-              <Button type="button" variant="contained" disabled={pickingList.length == 0} disableElevation onClick={handle_delete_all_list} sx={{ backgroundColor: "red", width: "10" }}><DeleteIcon /> Clear All</Button>
-              <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={handle_calculate_all} sx={{ backgroundColor: "orange", width: "10" }}>Pick All 全選 (Best Case)</Button>
-              {pickingList.length > 1 && <Button type="button" variant="contained" onClick={handle_random_calculate} disableElevation>Random Shuffle Picking List</Button>}
+              <Typography variant="h5" fontWeight={"bold"}><InventoryIcon /> Container Location 膠箱位置</Typography>
+              <Stack direction={"row"} gap={1}>
+                <Button type="button" variant="contained" disableElevation disabled={storage.length == 0} onClick={handle_delete_all} sx={{ backgroundColor: "red", width: "10" }}> <DeleteIcon />Clear All</Button>
+                <Button type="button" variant="contained" disableElevation onClick={handle_generate_random_storage} sx={{ backgroundColor: "#dd5716", width: "10" }}>Generate Storage 建立庫存 （90% Full）</Button>
+              </Stack>
             </Stack>
-            {/* <FormControlLabel
-              control={<Switch disabled={disabled} checked={checked_all ? checked_random : false} onClick={handle_random_calculate} />}
-              label="Random Picking 隨機挑選"
-            /> */}
-          </Stack>
+            {storage.length > 0 && <StorageTable storage={storage} onDelete={handleDelete} />}
 
-          {pickingList.length > 0 && <StorageTable storage={pickingList} onDelete={handleDeleteList} />}
+            <InputRowsSection
+              type="storage"
+              newRow={storageRows}
+              setNewRow={setStorageRows}
+              list={storage}
+              setList={setStorage}
+              length={length}
+              breadth={breadth}
+              height={height}
+              storage={storage}
+            />
 
-          <InputRowsSection
-            type="picking"
-            newRow={pickingRows}
-            setNewRow={setPickingRows}
-            list={pickingList}
-            setList={setPickingList}
-            length={length}
-            breadth={breadth}
-            height={height}
-            storage={storage}
-          />
+            {length > 0 && breadth > 0 && height > 0 && <StorageScene storage={storage} all_storage={all_storage} />}
+            <Divider orientation="horizontal" flexItem />
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+              marginBottom={-1}
+              ref={pickingListRef}
+            >
+              <Typography
+                sx={{ textAlign: 'left' }}
+                variant="h5"
+                fontWeight="bold"
+              >
+                <ListAltIcon /> Picking List 揀貨單
+              </Typography>
+              <Stack direction={"row"} gap={2}>
+                <Button type="button" variant="contained" disabled={pickingList.length == 0} disableElevation onClick={handle_delete_all_list} sx={{ backgroundColor: "red", width: "10" }}><DeleteIcon /> Clear All</Button>
+                <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={handle_calculate_all} sx={{ backgroundColor: "orange", width: "10" }}>Pick All 全選 (Best Case)</Button>
+                {pickingList.length > 1 && <Button type="button" variant="contained" onClick={handle_random_calculate} disableElevation>Random Shuffle Picking List</Button>}
+              </Stack>
+            </Stack>
 
-          {/* <InputRowsSection
-            rows={pickingRows}
-            handleInputChange={(id, axis, value) => handleInputChange(id, axis, value, 'picking')}
-            addRow={(index) => addRow(index, 'picking')}
-            removeRow={(id) => removeRow(id, 'picking')}
-            showRows={!checked_all}
-          /> */}
-        </Grid>
-        <Button onClick={handleFinalSubmit} variant="contained" disableElevation sx={{ backgroundColor: "#dd5716", display: "flex", width: "100%", marginTop: '30px' }}>計算時間</Button>
-      </Paper>
-      {result}
-    </Stack>
+            {pickingList.length > 0 && <StorageTable storage={pickingList} onDelete={handleDeleteList} />}
+
+            <InputRowsSection
+              type="picking"
+              newRow={pickingRows}
+              setNewRow={setPickingRows}
+              list={pickingList}
+              setList={setPickingList}
+              length={length}
+              breadth={breadth}
+              height={height}
+              storage={storage}
+            />
+
+          </Grid>
+          <Button onClick={handleFinalSubmit} variant="contained" disableElevation sx={{ backgroundColor: "#dd5716", display: "flex", width: "100%", marginTop: '30px' }}>計算時間</Button>
+        </Paper>
+        {result}
+      </Stack>
+
+    </>
   );
 }
 
