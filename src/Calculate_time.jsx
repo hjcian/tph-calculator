@@ -5,7 +5,8 @@ export function calculate_time(x, y, z, trf_t, climb_t, turn_t, all_storage, sto
     const move_t_1 = 4;
     const move_t_long = 0.6;
     ///console.log("IWANTSEESTORAGE HERE",storage);
-    if (storage != null) {
+    if (storage != [] ) {
+
         // storage.sort((a, b) => {
         //     if (a.x !== b.x) return a.x - b.x;     // primary sort: x ascending
         //     return a.y - b.y;                      // secondary sort: y ascending
@@ -100,11 +101,11 @@ export function calculate_time(x, y, z, trf_t, climb_t, turn_t, all_storage, sto
 
 export function display_result(length, breadth, height, time, error,storage) {
     return (
-        error === true ? ("") : (
+        error === true ? ("Error") : (
             <>
-                貨架數量：{length * breadth * height} units <br />
-                膠箱數量：{storage.length} <br />
-                花費時間：{(time * 2).toFixed(2)} s <br />
+                Maximum Storage Capacity 貨架數量：{length * breadth * height} units <br />
+                No. of Container 膠箱數量：{storage.length} <br />
+                Total Time Spent 花費時間：{(time * 2).toFixed(2)} s <br />
                 Workstation TPH：
             </>
         )
