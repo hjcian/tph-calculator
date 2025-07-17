@@ -3,7 +3,7 @@ import { Routes, Route, Link } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import About from './pages/About.jsx';
 import WarehouseCalculation from './pages/WarehouseCalculation.jsx';
-import { Navigate } from 'react-router-dom';
+import { Typography } from '@mui/material';
 
 export default function App() {
   return (
@@ -11,10 +11,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} /> 
         <Route path="/warehouse" element={<WarehouseCalculation />} />
-
-        {/* TO REPLACE when developed */}
         <Route path="/about" element={<About />} />
-        <Route path="*" element={<h1>404 Not Found</h1>} /> 
+        <Route path="*" element={<Typography variant='h6'>404 Not Found</Typography>} /> 
       </Routes>
     </>
   );

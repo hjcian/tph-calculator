@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
+import logo from './assets/image/TAC-Dynamics.jpg';
 
 import {
   Box,
@@ -76,9 +77,9 @@ export default function TemporaryDrawer() {
               </IconButton>
               <Box
                 component="img"
-                src="src\assets\image\TAC-Dynamics.jpg"  // replace with your logo URL or import
+                src={logo} 
                 alt="Logo"
-                sx={{ height: 40, mr: 2 }} // adjust height and margin as needed
+                sx={{ height: 40, mr: 2 }}
               />
               <Typography variant="h6" component="div">
                 TAC Dynamics

@@ -32,7 +32,7 @@ export function display_result(length, breadth, height, work_t, time, relocate_t
             }}>
                 <Stack display="flex" alignItems={'center'} direction={'column'} gap={1} >
                     <Typography variant="h4" fontWeight='bold'>Recommended No. of Robot(s)：{Math.ceil(((relocate_time + time * 2) / pick_number)/work_t)}</Typography>
-
+                    <Typography>Estimated New TPH：</Typography>
                 </Stack>
             </Paper>
         </Stack>

@@ -319,7 +319,10 @@ export default function WarehouseCalculation() {
                 sx={{ paddingLeft: 2 }}
 
               >
-                <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Storage Setting 庫存設置</Box></Typography>
+                <Stack direction="column">
+                  <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Storage Setting 庫存設置</Box></Typography>
+                  <Typography marginRight={1} color={'gray'}>Maximum Storage Capacity 貨架數量： {length * breadth * height}</Typography>
+                </Stack>
               </AccordionSummary>
               {/* <CustomizedDialogs /> */}
               <AccordionDetails>
@@ -375,7 +378,7 @@ export default function WarehouseCalculation() {
                     <Typography variant="h6" fontWeight={"bold"}>
                       <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Workstation Setting 工作站設置 </Box>
                     </Typography>
-                    <Typography marginRight={1} color={'gray'}>No. of Workstation(s): {workstation.length}</Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Workstation(s)：{workstation.length}</Typography>
                   </Stack>
                   <Stack direction="row" alignItems="center">
                     <Typography marginRight={1}>作業時間 (s):</Typography> <TextField
@@ -482,8 +485,9 @@ export default function WarehouseCalculation() {
                   alignItems="center"
                   width="100%"
                 >
-                  <Stack>
-                    <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container Location 膠箱位置</Box> </Typography>
+                  <Stack direction="column">
+                    <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container(s) Location 膠箱位置</Box> </Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Container(s) 膠箱數量：{storage.length}</Typography>
                   </Stack>
 
                   <Stack direction="row" gap={3} alignItems="center" ml="auto">
@@ -557,16 +561,19 @@ export default function WarehouseCalculation() {
                   alignItems="center"
                   width="100%"
                 >
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    sx={{ textAlign: 'left' }}
-                  >
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <ListAltIcon />
-                      Picking List 揀貨單
-                    </Box>
-                  </Typography>
+                  <Stack direction="column">
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      sx={{ textAlign: 'left' }}
+                    >
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <ListAltIcon />
+                        Picking List 揀貨單
+                      </Box>
+                    </Typography>
+                    <Typography marginRight={1} color={'gray'}>List Count 揀貨單數量：{pickingList.length}</Typography>
+                  </Stack>
                   <Stack direction={"row"} gap={2}>
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
                       sx={{
@@ -638,7 +645,6 @@ export default function WarehouseCalculation() {
         </Stack>
         {result}
       </Stack>
-
     </ >
   );
 }
