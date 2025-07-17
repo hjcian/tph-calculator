@@ -1,56 +1,60 @@
-export function calculate_time(x, y, z, trf_t, climb_t, turn_t, all_storage, storage, mode = "default") {
+import { Stack, Typography, Divider } from "@mui/material";
+import 'katex/dist/katex.min.css';
+import { BlockMath, InlineMath } from 'react-katex';
+
+export function calculate_time(x, y, z, trf_t, climb_t, turn_t, all_storage, storage, pickingList, workstation) {
     let time = 0;
     let blocking_time = 0;
-    ///console.log("x, y, z", x, y, z);
+    console.log("x, y, z", x, y, z);
     const move_t_1 = 4;
     const move_t_long = 0.6;
-    ///console.log("IWANTSEESTORAGE HERE",storage);
-    if (storage != [] ) {
+    // if (!workstation) {
+    //     return;
+    // }
 
-        // storage.sort((a, b) => {
-        //     if (a.x !== b.x) return a.x - b.x;     // primary sort: x ascending
-        //     return a.y - b.y;                      // secondary sort: y ascending
-        // });
-        // console.log("new filled", storage);
+    if (storage != []) {
 
         //阻塞容器
         let blocking_container = storage
             .filter(item => item.x === x && item.y === y && item.z < z)
             .sort((a, b) => a.z - b.z);
 
-        if (mode != "default") {
-            //如果有阻塞容器，但之後需要盤點，就不需要移開
-            blocking_container = blocking_container.filter(blocking =>
-                !storage.some(s =>
-                    s.x === blocking.x && s.y === blocking.y && s.z === blocking.z
-                )
-            );
-        }
-
         let empty_storage = all_storage.filter(pos =>
             !storage.some(filled =>
                 filled.x === pos.x && filled.y === pos.y && filled.z === pos.z
             )
         );
-
+        console.log("blocking_container", blocking_container);
+        console.log("empty_storage", empty_storage);
+        console.log("Check if pickinglist is passed properly:", [...pickingList.map(item => ({ ...item }))]);
         for (let container of blocking_container) {
             //console.log(container.x,container.y,container.z);
-            const target = find_lowest_z_nearest_xy(container.x, container.y, empty_storage, storage);
+            const target = find_lowest_z_nearest_xy(container.x, container.y, empty_storage);
+
+            console.log("target", target);
+            if (target == null) {
+                throw new Error("Not enough free space in storage. Please remove some containers and try again.");
+            }
+
             //console.log("target", container.x, container.y, empty_storage);
-            blocking_time += remove_blocking_container(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long);
+            blocking_time += point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long);
             blocking_container = blocking_container.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
             storage = storage.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
             storage.push(target);
+
+            const index = pickingList.findIndex(
+                item => item.x === container.x && item.y === container.y && item.z === container.z
+            );
+
+            if (index !== -1) {
+                pickingList[index] = target;
+            }
+
             empty_storage = empty_storage.filter(items => !(items.x === target.x && items.y === target.y && items.z === target.z));
             empty_storage.push(container);
         }
     }
 
-    ///console.log("TIME SPENT REMOVING CONTAINERS", blocking_time);
-
-    if (mode != "default") {
-
-    }
     //
     //  3 | I| J| K| L|
     //  2 | H| G| F| E|
@@ -60,102 +64,70 @@ export function calculate_time(x, y, z, trf_t, climb_t, turn_t, all_storage, sto
     //
 
     if (x >= 0 && y >= 0 && z > 0) {
-        if (x == 0 && y > 0) {  //A Column
-            if (y == 1) {
-                ///console.log("caseA-1");
-                time += move_t_1;
-            }
-            else {
-                ///console.log("caseA-2");
-                time += move_t_1 + (y - 1) * move_t_long;
-            } //Each additional grid add extra 0.6s 
-        } else if (x == 1 && y > 0) {  //B Column
-            if (y == 1) {
-                ///console.log("caseB-1");
-                time += move_t_1 + move_t_1 + trf_t;
-            }
-            else {
-                ///console.log("caseB-2");
-                time += move_t_1 + move_t_1 + (y - 1) * move_t_long + trf_t;
-            }
-        } else if (x > 1 && y > 0) { //others
+        //Find nearest workstation
+        const target_ws = find_lowest_z_nearest_xy(x, y, workstation);
+        console.log("targetWS", target_ws);
+        const pointArray = { x, y, z };
+        console.log("pointArray", pointArray);
+        time = point_to_point_time(pointArray, target_ws, trf_t, climb_t, turn_t, move_t_1, move_t_long);
 
-            if (y == 1) {
-                ///console.log("caseC-1");
-                time += move_t_1 + (x - 1) * move_t_long + move_t_1 + trf_t;
-            }
-            else {
-                ///console.log("caseC-2");
-                time += move_t_1 + (x - 1) * move_t_long + move_t_1 + (y - 1) * move_t_long + trf_t;
-            }
-        }
+        // if (x == 0 && y > 0) {  //A Column
+        //     if (y == 1) {
+        //         ///console.log("caseA-1");
+        //         time += move_t_1;
+        //     }
+        //     else {
+        //         ///console.log("caseA-2");
+        //         time += move_t_1 + (y - 1) * move_t_long;
+        //     } //Each additional grid add extra 0.6s 
+        // } else if (x == 1 && y > 0) {  //B Column
+        //     if (y == 1) {
+        //         ///console.log("caseB-1");
+        //         time += move_t_1 + move_t_1 + trf_t;
+        //     }
+        //     else {
+        //         ///console.log("caseB-2");
+        //         time += move_t_1 + move_t_1 + (y - 1) * move_t_long + trf_t;
+        //     }
+        // } else if (x > 1 && y > 0) { //others
 
-        //Vertical Movement
-        if (y != 0 && z > 0) {
-            time += trf_t + z * climb_t + turn_t;
-        }
-        ///console.log(time);
-        return (!isNaN(time) ? [storage ,time, blocking_time] : "ERROR");
-    } else return 0;
+        //     if (y == 1) {
+        //         ///console.log("caseC-1");
+        //         time += move_t_1 + (x - 1) * move_t_long + move_t_1 + trf_t;
+        //     }
+        //     else {
+        //         ///console.log("caseC-2");
+        //         time += move_t_1 + (x - 1) * move_t_long + move_t_1 + (y - 1) * move_t_long + trf_t;
+        //     }
+        // }
+
+        // //Vertical Movement
+        // if (y != 0 && z > 0) {
+        //     time += trf_t + z * climb_t + turn_t;
+        // }
+        console.log("Timenow", time);
+        console.log("Total Blockingtime", blocking_time);
+        console.log("Newest Picking List", [...pickingList.map(item => ({ ...item }))]);
+        console.log("Undefiend storage", storage);
+        return (!isNaN(time) && [storage, pickingList, time, blocking_time]);
+    };
 }
 
-export function display_result(length, breadth, height, time, error,storage) {
-    return (
-        error === true ? ("Error") : (
-            <>
-                Maximum Storage Capacity 貨架數量：{length * breadth * height} units <br />
-                No. of Container 膠箱數量：{storage.length} <br />
-                Total Time Spent 花費時間：{(time * 2).toFixed(2)} s <br />
-                Workstation TPH：
-            </>
-        )
-    );
-}
-
-function find_lowest_z_nearest_xy(x, y, empty_storage, storage) {
-    // let candidatesX = [];
-    // let candidatesY = [];
-    // let candidatesAny = [];
-
-    // for (const slot of empty_storage) {
-    //     if (slot.x === x && slot.y === y) continue; // same stack
-    //     if (slot.y === y) candidatesX.push(slot);   // only x changes
-    //     else if (slot.x === x) candidatesY.push(slot); // only y changes
-    //     else candidatesAny.push(slot);             // both change
-    // }
-
-    // const pickLowestZ = (slots) => {
-    //     let closest = null;
-    //     let minZ = Infinity;
-    //     for (const slot of slots) {
-    //         if (slot.z < minZ) {
-    //             minZ = slot.z;
-    //             closest = slot;
-    //         }
-    //     }
-    //     return closest;
-    // };
-
-    // return (
-    //     pickLowestZ(candidatesX) ||
-    //     pickLowestZ(candidatesY) ||
-    //     pickLowestZ(candidatesAny)
-    // );
+function find_lowest_z_nearest_xy(x, y, locations) {
     let closest = null;
     let minZ = Infinity;
     let minSteps = Infinity;
     let oldX = null;
     let oldY = null;
 
-    empty_storage.sort((a, b) => {
+    locations.sort((a, b) => {
         if (a.x !== b.x) return a.x - b.x;
         if (a.y !== b.y) return a.y - b.y;
         return b.z - a.z; // descending z
     });
 
-    ///console.log("Empty storage",empty_storage);
 
-    for (const slot of empty_storage) {
+    for (const slot of locations) {
         if (!(oldX === slot.x && oldY === slot.y)) {
             ///console.log(slot.x, slot.y, slot.z);
             if (slot.x === x && slot.y === y) continue;
@@ -180,8 +152,7 @@ function find_lowest_z_nearest_xy(x, y, empty_storage, storage) {
 }
 
 
-function remove_blocking_container(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long) {
-    ///console.log("container:", container, "target:", target);
+function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long) {
     let add_time = 0;
     let x = container.x;
     let y = container.y;
@@ -211,15 +182,15 @@ function remove_blocking_container(container, target, trf_t, climb_t, turn_t, mo
         add_time += target_z * climb_t + trf_t + turn_t;
     }
 
-    ///console.log("additional time", add_time);
+    console.log("additional time", add_time);
     return add_time;
 }
 
-export function random_storage(length, breadth, height) {
-
+export function random_storage(length, breadth, height, full_percentage) {
+    console.log('FULL', full_percentage);
     const storage = [];
     const total_bins = length * breadth * height;
-    const target_fill = Math.floor(total_bins * 0.9);
+    const target_fill = Math.floor(total_bins * full_percentage / 100);
     let filled_bins = 0;
     let attempts = 0;
     const maxAttempts = total_bins * 5;
