@@ -14,8 +14,20 @@ export default function InputRowsSection({
   storage = []
 }) {
 
-  const typeLabel = type === 'storage' ? '儲存' : '揀貨';
-  const listName = type === 'storage' ? 'storage' : 'picking list';
+  const typeLabels = {
+    storage: '儲存',
+    workstation: '工作站',
+    picking: '揀貨',
+  };
+
+  const listNames = {
+    storage: 'storage',
+    workstation: 'workstation',
+    picking: 'picking list',
+  };
+
+  const typeLabel = typeLabels[type] || '揀貨';
+  const listName = listNames[type] || 'picking list';
 
   const handleAdd = () => {
     const x = parseFloat(newRow.x);
@@ -31,36 +43,43 @@ export default function InputRowsSection({
       return;
     }
 
-
-    if (!isNaN(x) && !isNaN(y) && !isNaN(z) &&
-      x <= length && y <= breadth && z <= height && z > 0) {
-      if (type === 'picking') {
-        const isExist = storage.some(
-          (item) =>
-            item.x === x &&
-            item.y === y &&
-            item.z === z
-        );
-        if (!isExist) {
-          alert(`容器(${x}, ${y}, ${z})不在庫存\nThe container (${x}, ${y}, ${z})is not in storage`);
-          setNewRow({ x: '', y: '', z: '' });
-          return;
+    if (type != 'workstation') {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) &&
+        x <= length && y <= breadth && z <= height && z > 0) {
+        if (type === 'picking') {
+          const isExist = storage.some(
+            (item) =>
+              item.x === x &&
+              item.y === y &&
+              item.z === z
+          );
+          if (!isExist) {
+            alert(`容器(${x}, ${y}, ${z})不在庫存\nThe container (${x}, ${y}, ${z})is not in storage`);
+            setNewRow({ x: '', y: '', z: '' });
+            return;
+          }
         }
-      }
         if (type === 'storage') {
-          console.log(length*breadth*height);
-          if(storage.length +1 > length*breadth*height * 0.9){
+          console.log(length * breadth * height);
+          if (storage.length + 1 > length * breadth * height * 0.9) {
             alert(`庫存已達上限的 90%，請先清空部分空間再新增容器\nStorage space is 90% full. Please free up space before adding new containers.`)
             setNewRow({ x: '', y: '', z: '' });
             return;
           }
         }
-
-      setList((prev) => [...prev, { x, y, z }]);
-      setNewRow({ x: '', y: '', z: '' }); // Reset input after adding
+        setList((prev) => [...prev, { x, y, z }]);
+        setNewRow({ x: '', y: '', z: '' }); // Reset input after adding
+      } else {
+        alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
+      }
     } else {
-      alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x >= 0 && x<length && y ==0 && z == 0) {
+        setList((prev) => [...prev, { x, y, z }]);
+      } else {
+        alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
+      }
     }
+
   };
   return (
     <>
@@ -73,6 +92,7 @@ export default function InputRowsSection({
                 name={axis}
                 type="number"
                 fullWidth
+                disabled={type=='workstation'}
                 value={newRow[axis]}
                 onChange={(e) =>
                   setNewRow((prev) => ({
@@ -89,8 +109,9 @@ export default function InputRowsSection({
             disableElevation
             sx={{ height: '56px', minWidth: '56px' }}
             onClick={handleAdd}
+            disabled={type == 'workstation'}
           >
-            <AddIcon/>
+            <AddIcon />
           </Button>
         </Stack>
       )}

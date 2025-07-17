@@ -2,7 +2,7 @@ import * as React from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import {Table,TableBody, TableHead,TableCell,TableContainer,TableFooter,TablePagination,TableRow,IconButton, Typography,Button} from '@mui/material';
+import { Table, TableBody, TableHead, TableCell, TableContainer, TableFooter, TablePagination, TableRow, IconButton, Typography, Button } from '@mui/material';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
@@ -70,7 +70,7 @@ TablePaginationActions.propTypes = {
     rowsPerPage: PropTypes.number.isRequired,
 };
 
-export default function StorageTable({ storage, onDelete  }) {
+export default function StorageTable({ storage, onDelete, onDeleteAll }) {
     const [page, setPage] = React.useState(0);
     const [rowsPerPage, setRowsPerPage] = React.useState(5);
 
@@ -94,26 +94,36 @@ export default function StorageTable({ storage, onDelete  }) {
             : safeStorage;
 
     return (
-        <TableContainer sx={{border: '1px solid #ccc',borderRadius: 2}}>
+        <TableContainer sx={{ border: '1px solid #ccc', borderRadius: 2 }}>
             <Table aria-label="Storage Table" sx={{ minWidth: 500 }}>
-                <TableHead sx={{backgroundColor:"#ccc"}}>
+                <TableHead sx={{ backgroundColor: "#ccc" }}>
                     <TableRow>
-                        <TableCell align="center"><Typography sx={{fontWeight:700}}>#</Typography></TableCell>
-                        <TableCell align="center"><Typography sx={{fontWeight:700}}>x</Typography></TableCell>
-                        <TableCell align="center"><Typography sx={{fontWeight:700}}>y</Typography></TableCell>
-                        <TableCell align="center"><Typography sx={{fontWeight:700}}>z</Typography></TableCell>
-                        <TableCell align="center"><Typography sx={{fontWeight:700}}></Typography></TableCell>
+                        <TableCell align="center"><Typography sx={{ fontWeight: 700 }}>#</Typography></TableCell>
+                        <TableCell align="center"><Typography sx={{ fontWeight: 700 }}>x</Typography></TableCell>
+                        <TableCell align="center"><Typography sx={{ fontWeight: 700 }}>y</Typography></TableCell>
+                        <TableCell align="center"><Typography sx={{ fontWeight: 700 }}>z</Typography></TableCell>
+                        <TableCell align="center"><Typography>
+                            <Button type="button" variant="contained" disableElevation onClick={onDeleteAll}
+                                sx={{
+                                    backgroundColor: '#D2042D',
+                                    fontSize: '0.75rem', 
+                                    padding: '4px 8px',  
+                                    minWidth: 'auto',    
+                                    borderRadius: 0,
+                                }}
+                            >
+                                Delete All </Button></Typography></TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
                     {paginatedStorage.map((item, index) => (
                         <TableRow key={page * rowsPerPage + index}>
-                            <TableCell align="center" sx={{backgroundColor:"#e8e9eb",width: 60, fontWeight:700} }>{page * rowsPerPage + index + 1}</TableCell>
-                            <TableCell align="center" sx={{width: 220}}>{item.x}</TableCell>
-                            <TableCell align="center"sx={{width: 220}}>{item.y}</TableCell>
-                            <TableCell align="center"sx={{width: 220}}>{item.z}</TableCell>
-                            <TableCell align="center"sx={{width: 60}}>
-                                <IconButton onClick={() => onDelete(page * rowsPerPage + index)}><DeleteIcon sx={{color:"#D2042D"}} /></IconButton>
+                            <TableCell align="center" sx={{ backgroundColor: "#e8e9eb", width: 60, fontWeight: 700 }}>{page * rowsPerPage + index + 1}</TableCell>
+                            <TableCell align="center" sx={{ width: 220 }}>{item.x}</TableCell>
+                            <TableCell align="center" sx={{ width: 220 }}>{item.y}</TableCell>
+                            <TableCell align="center" sx={{ width: 220 }}>{item.z}</TableCell>
+                            <TableCell align="center" sx={{ width: 60 }}>
+                                <IconButton onClick={() => onDelete(page * rowsPerPage + index)}><DeleteIcon sx={{ color: "#D2042D" }} /></IconButton>
                             </TableCell>
                         </TableRow>
                     ))}

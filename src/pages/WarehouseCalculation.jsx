@@ -1,0 +1,644 @@
+import { useState, useRef, useMemo, useEffect } from 'react';
+import '../App.css';
+import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box } from '@mui/material';
+import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import { calculate_time, random_storage } from '../Calculate_time.jsx';
+import { display_result } from '../Display_result.jsx'
+import CustomizedDialogs from '../Dialog.jsx';
+import InputRowsSection from '../Input_Rows.jsx';
+import StorageTable from '../table.jsx';
+import StorageScene from '../3d.jsx';
+import Layout from '../Layout.jsx';
+import WarehouseIcon from '@mui/icons-material/Warehouse';
+import EngineeringIcon from '@mui/icons-material/Engineering';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import SmartToySharpIcon from '@mui/icons-material/SmartToySharp';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
+
+export default function WarehouseCalculation() {
+  const [result, setResult] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('error');
+  const resultRef = useRef(null);
+  const container_LocationRef = useRef(null);
+  const pickingListRef = useRef(null);
+  const [workstationRows, setWorkstationRows] = useState([{ x: '', y: '', z: '' }]);
+  const [storageRows, setStorageRows] = useState([{ x: '', y: '', z: '' }]);
+  const [pickingRows, setPickingRows] = useState([{ x: '', y: '', z: '' }]);
+  const [pickingList, setPickingList] = useState([]);
+  const [length, setLength] = useState(5);
+  const [breadth, setBreadth] = useState(5);
+  const [height, setHeight] = useState(5);
+  const [storage, setStorage] = useState([]);
+  const [workstation, setWorkstation] = useState([{ x: 0, y: 0, z: 0 }]);
+
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  ///
+  const [trf_t, setTrf_t] = useState(2);
+  const [climb_t, setClimb_t] = useState(2);
+  const [turn_t, setTurn_t] = useState(3.5);
+  const [work_t, setWork_t] = useState(30);
+  const [full_percentage, setFull_Percentage] = useState(90);
+
+  let totalTime = 0;
+  let totalRelocate = 0;
+
+  const [fieldErrors, setFieldErrors] = useState({
+    length: '',
+    breadth: '',
+    height: '',
+    trf_t: '',
+    climb_t: '',
+    turn_t: '',
+    work_t: '',
+    full_percentage: '',
+  });
+
+  useEffect(() => {
+    if (isClearingAll) {
+      setIsClearingAll(false);
+      return;
+    }
+
+    if (pickingList.length !== 0) {
+      const confirmClear = window.confirm("Changes have been made in storage. Do you want to clear the picking list? This cannot be reversed.");
+      if (confirmClear) {
+        setPickingList([]);
+      }
+    }
+  }, [storage]);
+
+  useEffect(() => {
+    setStorage([]);
+  }, [length, breadth, height]);
+
+  const handleDeleteItem = (indexToDelete, setFunction) => {
+    setFunction((prev) => prev.filter((_, index) => index !== indexToDelete));
+  };
+
+  const handleDimensionChange = (field, value) => {
+    const numVal = parseInt(value);
+    const floatVal = parseFloat(value);
+    // Update value
+    if (field === 'length') setLength(numVal);
+    else if (field === 'breadth') setBreadth(numVal);
+    else if (field === 'height') setHeight(numVal);
+    else if (field === 'trf_t') setTrf_t(floatVal);
+    else if (field === 'climb_t') setClimb_t(floatVal);
+    else if (field === 'turn_t') setTurn_t(floatVal);
+    else if (field === 'work_t') setWork_t(floatVal);
+    else if (field === 'full_percentage') setFull_Percentage(floatVal);
+  };
+
+  const validateInputs = () => {
+    const newErrors = {};
+
+    const fields = {
+      length,
+      breadth,
+      height,
+      trf_t,
+      climb_t,
+      turn_t,
+      work_t,
+      full_percentage
+    };
+
+    for (const [key, value] of Object.entries(fields)) {
+      const isDimension = ['length', 'breadth', 'height'].includes(key);
+
+      const num = Number(value);
+
+      if (value === '' || isNaN(num)) {
+        newErrors[key] = '必填數字';
+      } else if (isDimension && value < 1) {
+        newErrors[key] = '必須輸入 ≥ 1';
+      } else if (!isDimension && value <= 0) {
+        newErrors[key] = '必須輸入 > 0';
+      } else if (isDimension && !Number.isInteger(value)) {
+        newErrors[key] = '必須是整數';
+      } else if (key === 'full_percentage' && value > 100) {
+        newErrors[key] = '必須輸入 ≤ 100'
+      }
+    }
+    setFieldErrors(newErrors);
+    return Object.keys(newErrors).length === 0; // valid if no errors
+  };
+
+  const handleFinalSubmit = async () => {
+    let n = 1;
+    if (validateInputs()) {
+      // proceed with computation
+      console.log("All valid, proceeding...");
+      for (let p = 0; p < n; p++) {
+        console.log(`%c[DEBUG] %cIT RAN HERE ${p} times`, 'color: gray;', 'color: red; font-weight: bold;');
+        //newStorage = random_storage(length, breadth, height);
+        const [Time, RelocateTime] = calculate(storage);
+        //setStorage(newStorage);
+        if (p % 100 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0)); // let the UI update
+        }
+      }
+    } else {
+      console.log("Errors found.");
+    }
+  };
+
+  const all_storage = useMemo(() => {
+    const list = [];
+    for (let x = 0; x < length; x++) {
+      for (let y = 1; y <= breadth; y++) {
+        for (let z = 1; z <= height; z++) {
+          list.push({ x, y, z });
+        }
+      }
+    }
+    return list;
+  }, [length, breadth, height]);
+
+  const handle_calculate_all = () => {
+    setPickingList(storage);
+  };
+
+  const handle_random_calculate = () => {
+    let shuffledList = [...pickingList];
+    let i;
+    for (i = shuffledList.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledList[i], shuffledList[j]] = [shuffledList[j], shuffledList[i]];
+    }
+    setPickingList(shuffledList);
+  };
+
+  const handle_sort_calculate = () => {
+    let sortedPickingList = [...pickingList].sort((a, b) => {
+      if (a.x !== b.x) return a.x - b.x;
+      if (a.y !== b.y) return a.y - b.y;
+      return a.z - b.z;
+    });
+    setPickingList(sortedPickingList);
+  };
+
+  const handle_generate_random_storage = () => {
+    if (validateInputs()) {
+      if (storage.length > 0) {
+        const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${pickingList.length > 0 ? " This will clear existing picking list." : ""} This action cannot be reversed.`);
+        let newStorage = random_storage(length, breadth, height, full_percentage);
+        if (confirmClear) {
+          setIsClearingAll(true);
+          newStorage = [...newStorage].sort((a, b) => {
+            if (a.x !== b.x) return a.x - b.x;
+            if (a.y !== b.y) return a.y - b.y;
+            return a.z - b.z;
+          });
+          setStorage(newStorage);
+          setPickingList([]);
+        }
+      } else {
+        let newStorage = random_storage(length, breadth, height, full_percentage);
+        newStorage = [...newStorage].sort((a, b) => {
+          if (a.x !== b.x) return a.x - b.x;
+          if (a.y !== b.y) return a.y - b.y;
+          return a.z - b.z;
+        });
+        setStorage(newStorage);
+      }
+    }
+  };
+
+  const handle_delete_all = () => {
+    const confirmClear = window.confirm(`Are you sure you want to clear storage?${pickingList.length > 0 ? " This will also clear existing picking list." : ""} This action cannot be reversed.`);
+    if (confirmClear) {
+      setIsClearingAll(true);
+      setStorage([]);
+      setPickingList([]);
+    }
+    console.log("Deleted Storage", storage);
+    // console.log("storage gen", newStorage);
+  };
+
+  const handle_delete_all_list = () => {
+    setPickingList([]);
+    console.log("Deleted Storage", storage);
+    // console.log("storage gen", newStorage);
+  };
+
+  const scrollAndNotify = (ref, message, severity = "error") => {
+    setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+
+    if (message) {
+      setSnackbarMessage(message);
+      setSnackbarSeverity(severity);
+      setSnackbarOpen(true);
+    }
+  };
+
+  function calculate(calculate_storage = []) {
+    setResult('');
+    let time = 0;
+    let relocate_time = 0;
+    let i = 0;
+
+    if (storage.length === 0) {
+      scrollAndNotify(container_LocationRef, "No Storage 無庫存");
+    } else if (pickingList.length === 0) {
+      scrollAndNotify(pickingListRef, "No Picking List 無揀貨單");
+    } else {
+      scrollAndNotify(resultRef, "");
+    }
+
+    let newStorage = calculate_storage;
+    let newPickingList = pickingList.map(item => ({ ...item }));
+    console.log("PICKINGLIST Will update", [...newPickingList.map(item => ({ ...item }))]);
+
+    while (i < pickingList.length) {
+      const containers = newPickingList[i];
+      try {
+        const [newestStorage, newestPickingList, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, workstation);
+        time += deltaTime;
+        relocate_time += deltaRelocate;
+        newStorage = newestStorage;
+        newPickingList = newestPickingList;
+      } catch (err) {
+        console.error(err.message);
+        setSnackbarMessage(err.message); // show error UI
+        setSnackbarOpen(true);
+        return ('');
+      }
+      i++;
+    }
+
+    setIsUpdating(true);
+    //setStorage(newStorage);
+    //setPickingList(newPickingList);
+
+    if (pickingList.length > 0) {
+      setResult(
+        <Grid ref={resultRef}>
+          {display_result(length, breadth, height, work_t, time, relocate_time, false, storage, pickingList.length)}
+        </Grid>
+      );
+    }
+    return ([time, relocate_time]);
+  }
+
+  return (
+    <>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={snackbarSeverity}
+          onClose={() => setSnackbarOpen(false)}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+      <Stack
+        gap={1}
+      >
+        <Stack direction="row" gap={2} alignItems="stretch" sx={{ alignItems: 'stretch' }}>
+          <Stack spacing={2} width={"100%"}>
+            <Accordion defaultExpanded sx={{ border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.length || fieldErrors.breadth || fieldErrors.height) ? 'red' : '#ccc' }}>
+              <AccordionSummary
+                component="div"
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1-content"
+                id="panel1-header"
+                sx={{ paddingLeft: 2 }}
+
+              >
+                <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Storage Setting 庫存設置</Box></Typography>
+              </AccordionSummary>
+              {/* <CustomizedDialogs /> */}
+              <AccordionDetails>
+                <Stack direction={'column'} gap={1}>
+                  <Grid justifyContent={'flex-start'} borderRadius={2} display="flex" gap={1} flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
+                    <Typography flex={1}>Length 長度 (unit):</Typography> <TextField
+                      value={length}
+                      onChange={(e) => handleDimensionChange('length', e.target.value)}
+                      error={!!fieldErrors.length}
+                      label={fieldErrors.length}
+                      type="number"
+                      step="1"
+                      name="length"
+                      sx={{ flex: 1 }} />
+
+                    <Typography flex={"1"}>Breadth 寬度 (unit):</Typography>
+                    <TextField
+                      value={breadth}
+                      onChange={(e) => handleDimensionChange('breadth', e.target.value)}
+                      error={!!fieldErrors.breadth}
+                      label={fieldErrors.breadth}
+                      type="number"
+                      name="breadth"
+                      sx={{ flex: 1 }} />
+
+                    <Typography flex={"1"}>Height 高度 (unit):</Typography> <TextField
+                      value={height}
+                      onChange={(e) => handleDimensionChange('height', e.target.value)}
+                      error={!!fieldErrors.height}
+                      label={fieldErrors.height}
+                      type="number"
+                      name="height"
+                      sx={{ flex: "1" }} />
+
+                  </Grid>
+                  {/* <Grid borderRadius={2} display="flex" gap={1} width="100%" flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
+                <Typography fontWeight={'bold'}>Exclude Column: </Typography>
+              </Grid> */}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+              <AccordionSummary
+                component="div"
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1-content"
+                id="panel1-header"
+                sx={{ paddingLeft: 2 }}
+              >
+                <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
+                  <Stack direction="column">
+                    <Typography variant="h6" fontWeight={"bold"}>
+                      <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Workstation Setting 工作站設置 </Box>
+                    </Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Workstation(s): {workstation.length}</Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="center">
+                    <Typography marginRight={1}>作業時間 (s):</Typography> <TextField
+                      value={work_t}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => { handleDimensionChange('work_t', e.target.value) }}
+                      error={!!fieldErrors.work_t}
+                      label={fieldErrors.work_t}
+                      name="work_t"
+                      type='number'
+                      sx={{ flex: 1 }} />
+                  </Stack>
+                </Stack>
+
+              </AccordionSummary>
+              {/* <CustomizedDialogs /> */}
+              <AccordionDetails>
+                <Stack direction={'column'} gap={1}>
+                  {workstation.length > 0 && <StorageTable storage={workstation} onDelete={''} />}
+                  <InputRowsSection
+                    type="workstation"
+                    newRow={workstationRows}
+                    setNewRow={setWorkstationRows}
+                    list={workstation}
+                    setList={setWorkstation}
+                    length={length}
+                    breadth={breadth}
+                    height={height}
+                    storage={storage}
+                  />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+              <AccordionSummary
+                component="div"
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1-content"
+                id="panel1-header"
+                sx={{ paddingLeft: 2 }}
+              >
+                <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> Robot Setting 機器人設置 </Box></Typography>
+                  <Stack direction="row" alignItems="center">
+                    <Typography marginRight={1}>No. of Robot(s):</Typography>
+                    <TextField disabled defaultValue={1}></TextField>
+                  </Stack>
+                </Stack>
+              </AccordionSummary>
+
+              <AccordionDetails>
+                <Stack borderRadius={2} display="flex" gap={1} flexDirection={'column'} backgroundColor={"#FAFAFA"} padding={2}>
+                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                    <Typography sx={{ width: 140 }}>移動速度 (m/s):</Typography> <TextField
+                      name="move"
+                      disabled={true}
+                      sx={{ flex: 1 }}
+                    />
+                    <Typography sx={{ width: 140 }}>轉向時間 (s):</Typography> <TextField
+                      value={trf_t}
+                      onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
+                      error={!!fieldErrors.trf_t}
+                      label={fieldErrors.trf_t}
+                      name="trf_t"
+                      type='number'
+                      sx={{ flex: 1, ml: 'auto' }} />
+                  </Stack>
+                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                    <Typography sx={{ width: 140 }}>爬升時間 (s):</Typography> <TextField
+                      value={climb_t}
+                      onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
+                      error={!!fieldErrors.climb_t}
+                      label={fieldErrors.climb_t}
+                      name="climb_t"
+                      type='number'
+                      sx={{ flex: 1 }} />
+                    {/*Pick/drop ==> slide up + rotate + slide down*/}
+                    <Typography sx={{ width: 140 }}>Pick/Drop 時間 (s):</Typography> <TextField
+                      value={turn_t}
+                      onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
+                      error={!!fieldErrors.turn_t}
+                      label={fieldErrors.turn_t}
+                      name="turn_t"
+                      type='number'
+                      sx={{ flex: 1, ml: 'auto' }} />
+                  </Stack>
+                </Stack>
+
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }} ref={container_LocationRef}>
+              <AccordionSummary
+                component="div"
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1-content"
+                id="panel1-header"
+                sx={{ paddingLeft: 2 }}
+              >
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  width="100%"
+                >
+                  <Stack>
+                    <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container Location 膠箱位置</Box> </Typography>
+                  </Stack>
+
+                  <Stack direction="row" gap={3} alignItems="center" ml="auto">
+                    <Stack flex={3} direction={'row'} alignItems={'center'} gap={1}>
+                      <TextField
+                        value={full_percentage}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => { handleDimensionChange('full_percentage', e.target.value) }}
+                        error={!!fieldErrors.full_percentage}
+                        label={fieldErrors.full_percentage}
+                        type="number"
+                        name="full_percentage"
+                        sx={{ flex: 1, maxWidth: 70 }} />
+                      <Typography>% Full</Typography>
+                    </Stack>
+
+                    <Box flex={7} maxWidth={200}>
+                      <Button
+                        variant="contained"
+                        disableElevation
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handle_generate_random_storage();
+                        }}
+                        sx={{
+                          backgroundColor: "#dd5716",
+                          fontSize: '0.75rem',
+                          padding: '4px 8px',
+                          minWidth: 'auto',
+                          width: '100%',
+                          whiteSpace: 'normal',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {storage.length > 0 ? 'Re-g' : 'G'}enerate Random Storage <br />隨機建立庫存
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack gap={1}>
+                  {storage.length > 0 && <StorageTable storage={storage} onDelete={(index) => handleDeleteItem(index, setStorage)} onDeleteAll={handle_delete_all} />}
+                  <InputRowsSection
+                    type="storage"
+                    newRow={storageRows}
+                    setNewRow={setStorageRows}
+                    list={storage}
+                    setList={setStorage}
+                    length={length}
+                    breadth={breadth}
+                    height={height}
+                    storage={storage}
+                  />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+              <AccordionSummary
+                component="div"
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1-content"
+                id="panel1-header"
+                sx={{ paddingLeft: 2 }}
+                ref={pickingListRef}
+              >
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  width="100%"
+                >
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    sx={{ textAlign: 'left' }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <ListAltIcon />
+                      Picking List 揀貨單
+                    </Box>
+                  </Typography>
+                  <Stack direction={"row"} gap={2}>
+                    {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
+                      sx={{
+                        backgroundColor: 'orange',
+                        fontSize: '0.75rem', // scale down text
+                        padding: '4px 8px',  // scale down padding
+                        minWidth: 'auto',    // prevent fixed size
+                      }}>Pick All 全選 (Best Case)</Button>}
+                    {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_random_calculate(); }} disableElevation
+                      sx={{
+                        fontSize: '0.75rem', // scale down text
+                        padding: '4px 8px',  // scale down padding
+                        minWidth: 'auto',    // prevent fixed size
+                      }}>Random Shuffle <br /> Picking List</Button>}
+                    {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_sort_calculate(); }} disableElevation
+                      sx={{
+                        backgroundColor: 'green',
+                        fontSize: '0.75rem', // scale down text
+                        padding: '4px 8px',  // scale down padding
+                        minWidth: 'auto',    // prevent fixed size
+                      }}>Sort Picking List <br /> (Best Case)</Button>}
+                  </Stack>
+                </Stack>
+              </AccordionSummary>
+
+              <AccordionDetails>
+                <Stack direction={'column'} gap={2}>
+                  {pickingList.length > 0 && <StorageTable storage={pickingList} onDelete={(index) => handleDeleteItem(index, setPickingList)} onDeleteAll={handle_delete_all_list} />}
+
+                  <InputRowsSection
+                    type="picking"
+                    newRow={pickingRows}
+                    setNewRow={setPickingRows}
+                    list={pickingList}
+                    setList={setPickingList}
+                    length={length}
+                    breadth={breadth}
+                    height={height}
+                    storage={storage}
+                  />
+                </Stack>
+
+              </AccordionDetails>
+            </Accordion>
+          </Stack>
+          <Stack direction={'column'} gap={1} sx={{
+            height: 370,
+            width: 450,
+            position: 'sticky',
+            top: 10,
+            alignSelf: 'flex-start',
+          }}>
+            <Paper
+              sx={{
+                height: '100%',
+                border: '1px solid #ccc',
+                borderRadius: 2,
+                boxShadow: 'none',
+                transition: 'height 0.3s ease',
+                display: 'flex',
+                alignItems: 'stretch',
+              }}
+              elevation={0}
+            >{(length > 0 && breadth > 0 && height > 0 && length * breadth * height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} workstation={workstation} />) :
+              <Grid height={'100%'} alignContent={'center'} margin={1}><Typography>Preview is unavailable for this configuration</Typography></Grid>}
+            </Paper>
+            <Button onClick={handleFinalSubmit} variant="contained" disableElevation sx={{ backgroundColor: "#dd5716", display: "flex", width: "100%" }}>計算時間</Button>
+          </Stack>
+        </Stack>
+        {result}
+      </Stack>
+
+    </ >
+  );
+}
