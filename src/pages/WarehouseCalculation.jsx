@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import '../App.css';
-import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box } from '@mui/material';
+import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Container } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import { calculate_time, random_storage } from '../Calculate_time.jsx';
 import { display_result } from '../Display_result.jsx'
@@ -39,6 +39,8 @@ export default function WarehouseCalculation() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   ///
+  const [move_t_1, setMove_t_1] = useState(4);
+  const [move_t_long, setMove_t_long] = useState(0.6);
   const [trf_t, setTrf_t] = useState(2);
   const [climb_t, setClimb_t] = useState(2);
   const [turn_t, setTurn_t] = useState(3.5);
@@ -52,6 +54,8 @@ export default function WarehouseCalculation() {
     length: '',
     breadth: '',
     height: '',
+    move_t_1: '',
+    move_t_long: '',
     trf_t: '',
     climb_t: '',
     turn_t: '',
@@ -88,6 +92,8 @@ export default function WarehouseCalculation() {
     if (field === 'length') setLength(numVal);
     else if (field === 'breadth') setBreadth(numVal);
     else if (field === 'height') setHeight(numVal);
+    else if (field === 'move_t_1') setMove_t_1(floatVal);
+    else if (field === 'move_t_long') setMove_t_long(floatVal);
     else if (field === 'trf_t') setTrf_t(floatVal);
     else if (field === 'climb_t') setClimb_t(floatVal);
     else if (field === 'turn_t') setTurn_t(floatVal);
@@ -261,7 +267,7 @@ export default function WarehouseCalculation() {
     while (i < pickingList.length) {
       const containers = newPickingList[i];
       try {
-        const [newestStorage, newestPickingList, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, workstation);
+        const [newestStorage, newestPickingList, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z,move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, workstation);
         time += deltaTime;
         relocate_time += deltaRelocate;
         newStorage = newestStorage;
@@ -280,11 +286,12 @@ export default function WarehouseCalculation() {
     //setPickingList(newPickingList);
 
     if (pickingList.length > 0) {
-      setResult(
-        <Grid ref={resultRef}>
-          {display_result(length, breadth, height, work_t, time, relocate_time, false, storage, pickingList.length)}
-        </Grid>
-      );
+      const inboundclash_t = turn_t + climb_t + trf_t + move_t_1;
+        setResult(
+          <Grid ref={resultRef}>
+            {display_result(length, breadth, height, work_t, inboundclash_t, time, relocate_time, false, storage, pickingList.length)}
+          </Grid>
+        );
     }
     return ([time, relocate_time]);
   }
@@ -380,8 +387,9 @@ export default function WarehouseCalculation() {
                     </Typography>
                     <Typography marginRight={1} color={'gray'}>No. of Workstation(s)：{workstation.length}</Typography>
                   </Stack>
-                  <Stack direction="row" alignItems="center">
-                    <Typography marginRight={1}>作業時間 (s):</Typography> <TextField
+                  <Stack direction="row" alignItems="center" sx={{ marginRight: 2 }}>
+                    <Typography marginRight={1}>作業時間 (s):</Typography>
+                    <TextField
                       value={work_t}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => { handleDimensionChange('work_t', e.target.value) }}
@@ -389,7 +397,7 @@ export default function WarehouseCalculation() {
                       label={fieldErrors.work_t}
                       name="work_t"
                       type='number'
-                      sx={{ flex: 1 }} />
+                      sx={{ flex: 1, maxWidth: 120 }} />
                   </Stack>
                 </Stack>
 
@@ -423,41 +431,58 @@ export default function WarehouseCalculation() {
               >
                 <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> Robot Setting 機器人設置 </Box></Typography>
-                  <Stack direction="row" alignItems="center">
-                    <Typography marginRight={1}>No. of Robot(s):</Typography>
-                    <TextField disabled defaultValue={1}></TextField>
-                  </Stack>
                 </Stack>
               </AccordionSummary>
 
               <AccordionDetails>
                 <Stack borderRadius={2} display="flex" gap={1} flexDirection={'column'} backgroundColor={"#FAFAFA"} padding={2}>
                   <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
-                    <Typography sx={{ width: 140 }}>移動速度 (m/s):</Typography> <TextField
-                      name="move"
-                      disabled={true}
+                    <Typography sx={{ width: 140 }}>移動時間 (s)<br />（首格）:</Typography>
+                    <TextField
+                      value={move_t_1}
+                      onChange={(e) => handleDimensionChange('move_t_1', e.target.value)}
+                      error={!!fieldErrors.move_t_1}
+                      label={fieldErrors.move_t_1}
+                      name="move_t_1"
+                      type='number'
                       sx={{ flex: 1 }}
                     />
-                    <Typography sx={{ width: 140 }}>轉向時間 (s):</Typography> <TextField
+                    <Typography sx={{ width: 140 }}>移動速度 (s)<br />（每增加一格）:</Typography>
+                    <TextField
+                      value={move_t_long}
+                      onChange={(e) => handleDimensionChange('move_t_long', e.target.value)}
+                      error={!!fieldErrors.move_t_long}
+                      label={fieldErrors.move_t_long}
+                      name="move_t_long"
+                      type='number'
+                      sx={{ flex: 1 }}
+                    />
+                  </Stack>
+                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                    <Typography sx={{ width: 140 }}>轉向時間 (s):</Typography>
+                    <TextField
                       value={trf_t}
                       onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
                       error={!!fieldErrors.trf_t}
                       label={fieldErrors.trf_t}
                       name="trf_t"
                       type='number'
-                      sx={{ flex: 1, ml: 'auto' }} />
-                  </Stack>
-                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
-                    <Typography sx={{ width: 140 }}>爬升時間 (s):</Typography> <TextField
+                      sx={{ flex: 1, ml: 'auto', maxWidth: 250 }} />
+                    <Typography sx={{ width: 140 }}>爬升時間 (s):</Typography>
+                    <TextField
                       value={climb_t}
                       onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
                       error={!!fieldErrors.climb_t}
                       label={fieldErrors.climb_t}
                       name="climb_t"
                       type='number'
-                      sx={{ flex: 1 }} />
+                      sx={{ flex: 1, maxWidth: 250 }} />
                     {/*Pick/drop ==> slide up + rotate + slide down*/}
-                    <Typography sx={{ width: 140 }}>Pick/Drop 時間 (s):</Typography> <TextField
+
+                  </Stack>
+                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                    <Typography sx={{ width: 140 }}>Pick/Drop 時間 (s):</Typography>
+                    <TextField
                       value={turn_t}
                       onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
                       error={!!fieldErrors.turn_t}
@@ -465,6 +490,8 @@ export default function WarehouseCalculation() {
                       name="turn_t"
                       type='number'
                       sx={{ flex: 1, ml: 'auto' }} />
+                    <Typography sx={{ width: 140 }}></Typography>
+                    <Box sx={{ flex: 1 }} />
                   </Stack>
                 </Stack>
 
@@ -489,8 +516,7 @@ export default function WarehouseCalculation() {
                     <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container(s) Location 膠箱位置</Box> </Typography>
                     <Typography marginRight={1} color={'gray'}>No. of Container(s) 膠箱數量：{storage.length}</Typography>
                   </Stack>
-
-                  <Stack direction="row" gap={3} alignItems="center" ml="auto">
+                  <Stack direction="row" gap={3} alignItems="center" ml="auto" sx={{ marginRight: 2 }}>
                     <Stack flex={3} direction={'row'} alignItems={'center'} gap={1}>
                       <TextField
                         value={full_percentage}
@@ -574,7 +600,7 @@ export default function WarehouseCalculation() {
                     </Typography>
                     <Typography marginRight={1} color={'gray'}>List Count 揀貨單數量：{pickingList.length}</Typography>
                   </Stack>
-                  <Stack direction={"row"} gap={2}>
+                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }}>
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
                       sx={{
                         backgroundColor: 'orange',

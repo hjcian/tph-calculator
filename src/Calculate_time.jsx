@@ -2,12 +2,11 @@ import { Stack, Typography, Divider } from "@mui/material";
 import 'katex/dist/katex.min.css';
 import { BlockMath, InlineMath } from 'react-katex';
 
-export function calculate_time(x, y, z, trf_t, climb_t, turn_t, all_storage, storage, pickingList, workstation) {
+export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, storage, pickingList, workstation) {
     let time = 0;
     let blocking_time = 0;
     console.log("x, y, z", x, y, z);
-    const move_t_1 = 4;
-    const move_t_long = 0.6;
+
     // if (!workstation) {
     //     return;
     // }
