@@ -2,7 +2,7 @@ import { Stack, Typography, Divider, Paper } from "@mui/material";
 import 'katex/dist/katex.min.css';
 import { BlockMath, InlineMath } from 'react-katex';
 
-export function display_result(length, breadth, height, work_t, time, relocate_time, error, storage, pick_number) {
+export function display_result(length, breadth, height, work_t,inboundclash_t, time, relocate_time, error, storage, pick_number) {
 
     return (
         <Stack direction={'row'} gap={1}>
@@ -31,7 +31,7 @@ export function display_result(length, breadth, height, work_t, time, relocate_t
                 borderWidth: 1, padding: 20, width: '100%', border: '1px solid #ccc'
             }}>
                 <Stack display="flex" alignItems={'center'} direction={'column'} gap={1} >
-                    <Typography variant="h4" fontWeight='bold'>Recommended No. of Robot(s)：{Math.ceil(((relocate_time + time * 2) / pick_number)/work_t)}</Typography>
+                    <Typography variant="h4" fontWeight='bold'>Recommended No. of Robot(s)：{Math.ceil(((relocate_time + time * 2 - inboundclash_t) / pick_number)/work_t)}</Typography>
                     <Typography>Estimated New TPH：</Typography>
                 </Stack>
             </Paper>
