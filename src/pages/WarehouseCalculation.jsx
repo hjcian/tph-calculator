@@ -25,6 +25,7 @@ export default function WarehouseCalculation() {
   const resultRef = useRef(null);
   const container_LocationRef = useRef(null);
   const pickingListRef = useRef(null);
+  const workstationRef = useRef(null);
   const [workstationRows, setWorkstationRows] = useState([{ x: '', y: '', z: '' }]);
   const [storageRows, setStorageRows] = useState([{ x: '', y: '', z: '' }]);
   const [pickingRows, setPickingRows] = useState([{ x: '', y: '', z: '' }]);
@@ -34,6 +35,9 @@ export default function WarehouseCalculation() {
   const [height, setHeight] = useState(5);
   const [storage, setStorage] = useState([]);
   const [workstation, setWorkstation] = useState([{ x: 0, y: 0, z: 0 }]);
+
+  const [robotRows, setRobotRows] = useState([{ x: '', y: '', z: '' }]);
+  const [robotPosition, setRobotPosition] = useState([{ x: 0, y: 0, z: 1 }]);
 
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -77,8 +81,23 @@ export default function WarehouseCalculation() {
     }
   }, [storage]);
 
+
+  useEffect(() => {
+    if (workstation.length === 0) {
+      setRobotPosition([{x:NaN,y:NaN,z:NaN}]);
+    } else {
+      const ws = workstation[0];
+      setRobotPosition([{
+        x: ws.x,
+        y: ws.y,
+        z: ws.z +1
+      }])       
+    }
+  }, [workstation]);
+
   useEffect(() => {
     setStorage([]);
+    setWorkstation([{ x: 0, y: 0, z: 0 }]);
   }, [length, breadth, height]);
 
   const handleDeleteItem = (indexToDelete, setFunction) => {
@@ -192,8 +211,9 @@ export default function WarehouseCalculation() {
 
   const handle_generate_random_storage = () => {
     if (validateInputs()) {
-      if (storage.length > 0) {
-        const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${pickingList.length > 0 ? " This will clear existing picking list." : ""} This action cannot be reversed.`);
+      if (storage.length > 0 || (robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)))) {
+        const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${((pickingList.length > 0 || robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)))) ? "\nThis will also affect the following:" : ''}${pickingList.length > 0 ? `\n- Clear existing picking list.` : ''}${robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)) ? `\n- Reset Robot position.` : ''}\n\nThis action cannot be reversed.`);
+
         let newStorage = random_storage(length, breadth, height, full_percentage);
         if (confirmClear) {
           setIsClearingAll(true);
@@ -204,6 +224,7 @@ export default function WarehouseCalculation() {
           });
           setStorage(newStorage);
           setPickingList([]);
+          setRobotPosition([{ x: 0, y: 0, z: 1 }])
         }
       } else {
         let newStorage = random_storage(length, breadth, height, full_percentage);
@@ -230,8 +251,11 @@ export default function WarehouseCalculation() {
 
   const handle_delete_all_list = () => {
     setPickingList([]);
-    console.log("Deleted Storage", storage);
     // console.log("storage gen", newStorage);
+  };
+
+  const handle_delete_all_ws = () => {
+    setWorkstation([]);
   };
 
   const scrollAndNotify = (ref, message, severity = "error") => {
@@ -247,12 +271,14 @@ export default function WarehouseCalculation() {
   };
 
   function calculate(calculate_storage = []) {
+    console.log("Robot position", robotPosition);
     setResult('');
     let time = 0;
     let relocate_time = 0;
-    let i = 0;
 
-    if (storage.length === 0) {
+    if (workstation.length === 0) {
+      scrollAndNotify(workstationRef, "No Workstation 無工作站");
+    } else if (storage.length === 0) {
       scrollAndNotify(container_LocationRef, "No Storage 無庫存");
     } else if (pickingList.length === 0) {
       scrollAndNotify(pickingListRef, "No Picking List 無揀貨單");
@@ -262,23 +288,24 @@ export default function WarehouseCalculation() {
 
     let newStorage = calculate_storage;
     let newPickingList = pickingList.map(item => ({ ...item }));
+    let newRobotPosition = robotPosition[0] || {};;
     console.log("PICKINGLIST Will update", [...newPickingList.map(item => ({ ...item }))]);
 
-    while (i < pickingList.length) {
-      const containers = newPickingList[i];
+    while (newPickingList.length > 0) {
+      const containers = newPickingList[0];
       try {
-        const [newestStorage, newestPickingList, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z,move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, workstation);
+        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, workstation, newRobotPosition);
         time += deltaTime;
         relocate_time += deltaRelocate;
         newStorage = newestStorage;
         newPickingList = newestPickingList;
+        newRobotPosition = newestRobotPosition;
       } catch (err) {
         console.error(err.message);
         setSnackbarMessage(err.message); // show error UI
         setSnackbarOpen(true);
         return ('');
       }
-      i++;
     }
 
     setIsUpdating(true);
@@ -286,12 +313,13 @@ export default function WarehouseCalculation() {
     //setPickingList(newPickingList);
 
     if (pickingList.length > 0) {
-      const inboundclash_t = turn_t + climb_t + trf_t + move_t_1;
-        setResult(
-          <Grid ref={resultRef}>
-            {display_result(length, breadth, height, work_t, inboundclash_t, time, relocate_time, false, storage, pickingList.length)}
-          </Grid>
-        );
+      const inboundclash_t = move_t_1 + trf_t + climb_t + turn_t + climb_t + move_t_1;
+      console.log(inboundclash_t, time / pickingList.length, relocate_time / pickingList.length);
+      setResult(
+        <Grid ref={resultRef}>
+          {display_result(work_t, inboundclash_t, time, relocate_time, pickingList.length, workstation.length)}
+        </Grid>
+      );
     }
     return ([time, relocate_time]);
   }
@@ -328,7 +356,7 @@ export default function WarehouseCalculation() {
               >
                 <Stack direction="column">
                   <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Storage Setting 庫存設置</Box></Typography>
-                  <Typography marginRight={1} color={'gray'}>Maximum Storage Capacity 貨架數量： {length * breadth * height}</Typography>
+                  <Typography marginRight={1} color={'gray'}>Maximum Storage Capacity 貨架數量: {length * breadth * height}</Typography>
                 </Stack>
               </AccordionSummary>
               {/* <CustomizedDialogs /> */}
@@ -372,7 +400,7 @@ export default function WarehouseCalculation() {
               </AccordionDetails>
             </Accordion>
 
-            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+            <Accordion sx={{ border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.work_t || workstation.length === 0) ? 'red' : '#ccc' }} ref={workstationRef}>
               <AccordionSummary
                 component="div"
                 expandIcon={<ExpandMoreIcon />}
@@ -385,7 +413,7 @@ export default function WarehouseCalculation() {
                     <Typography variant="h6" fontWeight={"bold"}>
                       <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Workstation Setting 工作站設置 </Box>
                     </Typography>
-                    <Typography marginRight={1} color={'gray'}>No. of Workstation(s)：{workstation.length}</Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Workstation(s) 工作站數量: {workstation.length}</Typography>
                   </Stack>
                   <Stack direction="row" alignItems="center" sx={{ marginRight: 2 }}>
                     <Typography marginRight={1}>作業時間 (s):</Typography>
@@ -405,7 +433,8 @@ export default function WarehouseCalculation() {
               {/* <CustomizedDialogs /> */}
               <AccordionDetails>
                 <Stack direction={'column'} gap={1}>
-                  {workstation.length > 0 && <StorageTable storage={workstation} onDelete={''} />}
+                  <Typography sx={{ alignSelf: 'flex-start' }}>Workstation Location:</Typography>
+                  {workstation.length > 0 && <StorageTable storage={workstation} onDelete={(index) => handleDeleteItem(index, setWorkstation)} onDeleteAll={handle_delete_all_ws} />}
                   <InputRowsSection
                     type="workstation"
                     newRow={workstationRows}
@@ -416,88 +445,12 @@ export default function WarehouseCalculation() {
                     breadth={breadth}
                     height={height}
                     storage={storage}
+                    all_storage={all_storage}
+                    workstation={workstation}
                   />
                 </Stack>
               </AccordionDetails>
             </Accordion>
-
-            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
-              <AccordionSummary
-                component="div"
-                expandIcon={<ExpandMoreIcon />}
-                aria-controls="panel1-content"
-                id="panel1-header"
-                sx={{ paddingLeft: 2 }}
-              >
-                <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> Robot Setting 機器人設置 </Box></Typography>
-                </Stack>
-              </AccordionSummary>
-
-              <AccordionDetails>
-                <Stack borderRadius={2} display="flex" gap={1} flexDirection={'column'} backgroundColor={"#FAFAFA"} padding={2}>
-                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
-                    <Typography sx={{ width: 140 }}>移動時間 (s)<br />（首格）:</Typography>
-                    <TextField
-                      value={move_t_1}
-                      onChange={(e) => handleDimensionChange('move_t_1', e.target.value)}
-                      error={!!fieldErrors.move_t_1}
-                      label={fieldErrors.move_t_1}
-                      name="move_t_1"
-                      type='number'
-                      sx={{ flex: 1 }}
-                    />
-                    <Typography sx={{ width: 140 }}>移動速度 (s)<br />（每增加一格）:</Typography>
-                    <TextField
-                      value={move_t_long}
-                      onChange={(e) => handleDimensionChange('move_t_long', e.target.value)}
-                      error={!!fieldErrors.move_t_long}
-                      label={fieldErrors.move_t_long}
-                      name="move_t_long"
-                      type='number'
-                      sx={{ flex: 1 }}
-                    />
-                  </Stack>
-                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
-                    <Typography sx={{ width: 140 }}>轉向時間 (s):</Typography>
-                    <TextField
-                      value={trf_t}
-                      onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
-                      error={!!fieldErrors.trf_t}
-                      label={fieldErrors.trf_t}
-                      name="trf_t"
-                      type='number'
-                      sx={{ flex: 1, ml: 'auto', maxWidth: 250 }} />
-                    <Typography sx={{ width: 140 }}>爬升時間 (s):</Typography>
-                    <TextField
-                      value={climb_t}
-                      onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
-                      error={!!fieldErrors.climb_t}
-                      label={fieldErrors.climb_t}
-                      name="climb_t"
-                      type='number'
-                      sx={{ flex: 1, maxWidth: 250 }} />
-                    {/*Pick/drop ==> slide up + rotate + slide down*/}
-
-                  </Stack>
-                  <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
-                    <Typography sx={{ width: 140 }}>Pick/Drop 時間 (s):</Typography>
-                    <TextField
-                      value={turn_t}
-                      onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
-                      error={!!fieldErrors.turn_t}
-                      label={fieldErrors.turn_t}
-                      name="turn_t"
-                      type='number'
-                      sx={{ flex: 1, ml: 'auto' }} />
-                    <Typography sx={{ width: 140 }}></Typography>
-                    <Box sx={{ flex: 1 }} />
-                  </Stack>
-                </Stack>
-
-              </AccordionDetails>
-            </Accordion>
-
             <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }} ref={container_LocationRef}>
               <AccordionSummary
                 component="div"
@@ -514,7 +467,7 @@ export default function WarehouseCalculation() {
                 >
                   <Stack direction="column">
                     <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container(s) Location 膠箱位置</Box> </Typography>
-                    <Typography marginRight={1} color={'gray'}>No. of Container(s) 膠箱數量：{storage.length}</Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Container(s) 膠箱數量:{storage.length}</Typography>
                   </Stack>
                   <Stack direction="row" gap={3} alignItems="center" ml="auto" sx={{ marginRight: 2 }}>
                     <Stack flex={3} direction={'row'} alignItems={'center'} gap={1}>
@@ -567,10 +520,114 @@ export default function WarehouseCalculation() {
                     breadth={breadth}
                     height={height}
                     storage={storage}
+                    all_storage={all_storage}
+                    workstation={workstation}
                   />
                 </Stack>
               </AccordionDetails>
             </Accordion>
+
+            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+              <AccordionSummary
+                component="div"
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="panel1-content"
+                id="panel1-header"
+                sx={{ paddingLeft: 2 }}
+              >
+                <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> Robot Setting 機器人設置 </Box></Typography>
+                  <Typography color={'gray'}>Current Position ({robotPosition[0].x},{robotPosition[0].y},{robotPosition[0].z})</Typography>
+                </Stack>
+              </AccordionSummary>
+
+              <AccordionDetails>
+                <Stack direction={'column'} gap={2}>
+                  <Stack borderRadius={2} display="flex" gap={1} flexDirection={'column'} backgroundColor={"#FAFAFA"} padding={2}>
+                    <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                      <Typography sx={{ width: 140 }}>移動時間 (s)<br />（首格）:</Typography>
+                      <TextField
+                        value={move_t_1}
+                        onChange={(e) => handleDimensionChange('move_t_1', e.target.value)}
+                        error={!!fieldErrors.move_t_1}
+                        label={fieldErrors.move_t_1}
+                        name="move_t_1"
+                        type='number'
+                        sx={{ flex: 1 }}
+                      />
+                      <Typography sx={{ width: 140 }}>移動時間 (s)<br />（每增加一格）:</Typography>
+                      <TextField
+                        value={move_t_long}
+                        onChange={(e) => handleDimensionChange('move_t_long', e.target.value)}
+                        error={!!fieldErrors.move_t_long}
+                        label={fieldErrors.move_t_long}
+                        name="move_t_long"
+                        type='number'
+                        sx={{ flex: 1 }}
+                      />
+                    </Stack>
+                    <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                      <Typography sx={{ width: 140 }}>轉向時間 (s):</Typography>
+                      <TextField
+                        value={trf_t}
+                        onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
+                        error={!!fieldErrors.trf_t}
+                        label={fieldErrors.trf_t}
+                        name="trf_t"
+                        type='number'
+                        sx={{ flex: 1, ml: 'auto', maxWidth: 250 }} />
+                      <Typography sx={{ width: 140 }}>爬升時間 (s):</Typography>
+                      <TextField
+                        value={climb_t}
+                        onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
+                        error={!!fieldErrors.climb_t}
+                        label={fieldErrors.climb_t}
+                        name="climb_t"
+                        type='number'
+                        sx={{ flex: 1, maxWidth: 250 }} />
+                      {/*Pick/drop ==> slide up + rotate + slide down*/}
+
+                    </Stack>
+                    <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
+                      <Typography sx={{ width: 140 }}>Pick/Drop 時間 (s):</Typography>
+                      <TextField
+                        value={turn_t}
+                        onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
+                        error={!!fieldErrors.turn_t}
+                        label={fieldErrors.turn_t}
+                        name="turn_t"
+                        type='number'
+                        sx={{ flex: 1, ml: 'auto' }} />
+                      <Typography sx={{ width: 140 }}></Typography>
+                      <Box sx={{ flex: 1 }} />
+                    </Stack>
+                  </Stack>
+                  <Stack gap={1} backgroundColor={"#FAFAFA"} padding={2}>
+                    <Stack direction={'row'} gap={3}>
+                      <Typography sx={{ textAlign: 'left', fontWeight: 'bold' }}>Starting Position:</Typography>
+                    </Stack>
+
+                    <InputRowsSection
+                      type="robot"
+                      newRow={robotRows}
+                      setNewRow={setRobotRows}
+                      list={robotPosition}
+                      setList={setRobotPosition}
+                      length={length}
+                      breadth={breadth}
+                      height={height}
+                      storage={storage}
+                      all_storage={all_storage}
+                      workstation={workstation}
+                    />
+                  </Stack>
+
+                </Stack>
+
+              </AccordionDetails>
+            </Accordion>
+
+
 
             <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
               <AccordionSummary
@@ -598,7 +655,7 @@ export default function WarehouseCalculation() {
                         Picking List 揀貨單
                       </Box>
                     </Typography>
-                    <Typography marginRight={1} color={'gray'}>List Count 揀貨單數量：{pickingList.length}</Typography>
+                    <Typography marginRight={1} color={'gray'}>List Count 揀貨單數量:{pickingList.length}</Typography>
                   </Stack>
                   <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }}>
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
@@ -639,6 +696,8 @@ export default function WarehouseCalculation() {
                     breadth={breadth}
                     height={height}
                     storage={storage}
+                    all_storage={all_storage}
+                    workstation={workstation}
                   />
                 </Stack>
 
@@ -663,7 +722,7 @@ export default function WarehouseCalculation() {
                 alignItems: 'stretch',
               }}
               elevation={0}
-            >{(length > 0 && breadth > 0 && height > 0 && length * breadth * height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} workstation={workstation} />) :
+            >{(length > 0 && breadth > 0 && height > 0 && length * breadth * height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} workstation={workstation} robot={robotPosition} />) :
               <Grid height={'100%'} alignContent={'center'} margin={1}><Typography>Preview is unavailable for this configuration</Typography></Grid>}
             </Paper>
             <Button onClick={handleFinalSubmit} variant="contained" disableElevation sx={{ backgroundColor: "#dd5716", display: "flex", width: "100%" }}>計算時間</Button>

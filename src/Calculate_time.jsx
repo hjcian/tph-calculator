@@ -2,15 +2,12 @@ import { Stack, Typography, Divider } from "@mui/material";
 import 'katex/dist/katex.min.css';
 import { BlockMath, InlineMath } from 'react-katex';
 
-export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, storage, pickingList, workstation) {
+export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, storage, pickingList=[], workstation, robotPosition) {
     let time = 0;
     let blocking_time = 0;
     console.log("x, y, z", x, y, z);
 
-    // if (!workstation) {
-    //     return;
-    // }
-
+    console.log("ROB", robotPosition);
     if (storage != []) {
 
         //阻塞容器
@@ -26,6 +23,7 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
         console.log("blocking_container", blocking_container);
         console.log("empty_storage", empty_storage);
         console.log("Check if pickinglist is passed properly:", [...pickingList.map(item => ({ ...item }))]);
+
         for (let container of blocking_container) {
             //console.log(container.x,container.y,container.z);
             const target = find_lowest_z_nearest_xy(container.x, container.y, empty_storage);
@@ -35,11 +33,16 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
                 throw new Error("Not enough free space in storage. Please remove some containers and try again.");
             }
 
+            //from start point to first blocking container
+            blocking_time += point_to_point_time(robotPosition, container, trf_t, climb_t, turn_t, move_t_1, move_t_long, "");
+
             //console.log("target", container.x, container.y, empty_storage);
-            blocking_time += point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long);
+            blocking_time += point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long, "");
+
             blocking_container = blocking_container.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
             storage = storage.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
             storage.push(target);
+            robotPosition = target;
 
             const index = pickingList.findIndex(
                 item => item.x === container.x && item.y === container.y && item.z === container.z
@@ -63,12 +66,19 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
     //
 
     if (x >= 0 && y >= 0 && z > 0) {
+
         //Find nearest workstation
         const target_ws = find_lowest_z_nearest_xy(x, y, workstation);
         console.log("targetWS", target_ws);
         const pointArray = { x, y, z };
         console.log("pointArray", pointArray);
-        time = point_to_point_time(pointArray, target_ws, trf_t, climb_t, turn_t, move_t_1, move_t_long);
+
+        //travel to container location
+        time = point_to_point_time(robotPosition, pointArray, trf_t, climb_t, turn_t, move_t_1, move_t_long);
+        console.log("robot move to container", time);
+        robotPosition = pointArray;
+        //travel to workstation
+        time += point_to_point_time(pointArray, target_ws, trf_t, climb_t, turn_t, move_t_1, move_t_long, "workstation") * 2;
 
         // if (x == 0 && y > 0) {  //A Column
         //     if (y == 1) {
@@ -108,7 +118,14 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
         console.log("Total Blockingtime", blocking_time);
         console.log("Newest Picking List", [...pickingList.map(item => ({ ...item }))]);
         console.log("Undefiend storage", storage);
-        return (!isNaN(time) && [storage, pickingList, time, blocking_time]);
+
+        const updatedPickingList = pickingList.filter(
+            item => !(item.x === x && item.y === y && item.z === z)
+        );
+        
+        console.log("updatedPickingList",updatedPickingList);
+        console.log("CHECK",[storage, updatedPickingList, robotPosition, time, blocking_time]);
+        return (!isNaN(time) && [storage, updatedPickingList, robotPosition, time, blocking_time]);
     };
 }
 
@@ -119,14 +136,14 @@ function find_lowest_z_nearest_xy(x, y, locations) {
     let oldX = null;
     let oldY = null;
 
-    locations.sort((a, b) => {
+    const locs = [...locations].sort((a, b) => {
         if (a.x !== b.x) return a.x - b.x;
         if (a.y !== b.y) return a.y - b.y;
         return b.z - a.z; // descending z
     });
 
 
-    for (const slot of locations) {
+    for (const slot of locs) {
         if (!(oldX === slot.x && oldY === slot.y)) {
             ///console.log(slot.x, slot.y, slot.z);
             if (slot.x === x && slot.y === y) continue;
@@ -150,13 +167,11 @@ function find_lowest_z_nearest_xy(x, y, locations) {
     return closest;
 }
 
-
-function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long) {
+function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long, mode = "") {
     let add_time = 0;
     let x = container.x;
     let y = container.y;
     let z = container.z;
-    ///console.log("remove", x, y, z);
 
     let target_x = target.x;
     let target_y = target.y;
@@ -168,7 +183,7 @@ function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1
     if (!(x == target_x && y == target_y)) {
         x_distance = Math.abs(x - target_x);
         y_distance = Math.abs(y - target_y);
-
+        console.log("distances:", x_distance, y_distance);
         if (x_distance == 0) { // if only need move y direction
             //y >= 1
             add_time = move_t_1 + (y_distance - 1) * move_t_long;
@@ -176,9 +191,15 @@ function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1
             add_time = move_t_1 + (x_distance - 1) * move_t_long;
         } else { //need move in both x and y direction
             add_time = move_t_1 + (x_distance - 1) * move_t_long + move_t_1 + (y_distance - 1) * move_t_long + trf_t;
+            console.log("timenow", add_time);
         }
         add_time += z * climb_t + trf_t + turn_t;
-        add_time += target_z * climb_t + trf_t + turn_t;
+        console.log("timenow2", add_time);
+        if (mode == "workstation") {
+            add_time += (target_z + 1) * climb_t + trf_t + turn_t;
+        } else {
+            add_time += (target_z) * climb_t + trf_t + turn_t;
+        }
     }
 
     console.log("additional time", add_time);
