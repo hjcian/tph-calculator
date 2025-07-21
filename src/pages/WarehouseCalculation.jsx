@@ -479,7 +479,7 @@ export default function WarehouseCalculation() {
                         label={fieldErrors.full_percentage}
                         type="number"
                         name="full_percentage"
-                        sx={{ flex: 1, maxWidth: 70 }} />
+                        sx={{ flex: 1, maxWidth: 80, minWidth:65 }} />
                       <Typography>% Full</Typography>
                     </Stack>
 

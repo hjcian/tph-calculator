@@ -25,6 +25,7 @@ const navItems = [
   { text: 'Home', path: '/' },
   { text: 'Physical Warehouse Calculation', path: '/warehouse' },
   { text: '并單', path: '/orders' },
+  { text: 'Slot', path: '/slot' },
   { text: 'About', path: '/about' }];
 
 export default function TemporaryDrawer() {
