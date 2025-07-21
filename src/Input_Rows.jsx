@@ -11,7 +11,9 @@ export default function InputRowsSection({
   breadth,
   height,
   type = 'storage',
-  storage = []
+  storage = [],
+  all_storage = [],
+  workstation = [],
 }) {
 
   const typeLabels = {
@@ -39,13 +41,16 @@ export default function InputRowsSection({
     );
 
     if (isDuplicate) {
-      alert(`容器 (${x}, ${y}, ${z}) 已存在於${typeLabel}中\nThe container (${x}, ${y}, ${z}) already exists in the ${listName}.`);
+      if (type != 'robot') {
+        alert(`容器 (${x}, ${y}, ${z}) 已存在於${typeLabel}中\nThe container (${x}, ${y}, ${z}) already exists in the ${listName}.`);
+      } else if (type == 'robot') {
+        alert(`機器人已在 (${x}, ${y}, ${z})\n Robot is already at (${x}, ${y}, ${z}).`);
+      }
       return;
     }
 
-    if (type != 'workstation') {
-      if (!isNaN(x) && !isNaN(y) && !isNaN(z) &&
-        x <= length && y <= breadth && z <= height && z > 0) {
+    if (type == 'picking' || type == 'storage') {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x <= length && y <= breadth && z <= height && z > 0) {
         if (type === 'picking') {
           const isExist = storage.some(
             (item) =>
@@ -55,7 +60,6 @@ export default function InputRowsSection({
           );
           if (!isExist) {
             alert(`容器(${x}, ${y}, ${z})不在庫存\nThe container (${x}, ${y}, ${z})is not in storage`);
-            setNewRow({ x: '', y: '', z: '' });
             return;
           }
         }
@@ -63,24 +67,139 @@ export default function InputRowsSection({
           console.log(length * breadth * height);
           if (storage.length + 1 > length * breadth * height * 0.9) {
             alert(`庫存已達上限的 90%，請先清空部分空間再新增容器\nStorage space is 90% full. Please free up space before adding new containers.`)
-            setNewRow({ x: '', y: '', z: '' });
             return;
           }
         }
+
         setList((prev) => [...prev, { x, y, z }]);
         setNewRow({ x: '', y: '', z: '' }); // Reset input after adding
+
       } else {
         alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
       }
-    } else {
-      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x >= 0 && x<length && y ==0 && z == 0) {
+    } else if (type == 'workstation') {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x >= 0 && x < length && y == 0 && z == 0) {
         setList((prev) => [...prev, { x, y, z }]);
+      }
+      else {
+        alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
+      }
+    } else if (type === 'robot') {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x >= 0 && x < length && y >= 0 && z >= 0) {
+
+        const seen = new Set(storage.map(item => `${item.x},${item.y}`));
+
+        const groupedAll = {};
+        all_storage.forEach(({ x, y, z }) => {
+          const key = `${x},${y}`;
+          if (!groupedAll[key] || z > groupedAll[key].z) {
+            groupedAll[key] = { x, y, z }; // highest z
+          }
+        });
+
+        const augmentedStorage = [...storage];
+
+        Object.entries(groupedAll).forEach(([key, coord]) => {
+          if (!seen.has(key)) {
+            augmentedStorage.push(coord);
+          }
+        });
+
+        const lowestZMap = {};
+        augmentedStorage.forEach(item => {
+          const key = `${item.x},${item.y}`;
+          if (!(key in lowestZMap) || item.z < lowestZMap[key]) {
+            lowestZMap[key] = item.z;
+          }
+        });
+
+        const lowestStorage = Object.entries(lowestZMap).flatMap(([key, z]) => {
+          const [x, y] = key.split(',').map(Number);
+          return Array.from({ length: z + 1 }, (_, i) => ({ x, y, z: z - i }));
+        });
+
+        const currentWorkstations = workstation;
+        const workstationsWithZPlusOne = workstation.map(({ x, y, z }) => ({
+          x, y, z: z + 1
+        }));
+
+        const combinedPositions = [
+          ...currentWorkstations,
+          ...workstationsWithZPlusOne,
+          ...lowestStorage
+        ];
+
+        if (combinedPositions.length === 0) {
+          alert('No valid positions available.');
+          return;
+        }
+
+        const inAvailable = combinedPositions.some(item => item.x === x && item.y === y && item.z === z);
+
+        if (inAvailable) {
+          setList([{ x, y, z }]);
+        } else {
+          alert(`位置必須在工作站，或是在容器下方無阻擋的位置。\nThe position must be at a workstation or at a place with no container blocking underneath.`);
+        }
       } else {
         alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
       }
     }
-
   };
+
+  const randomPosition = () => {
+
+    const seen = new Set(storage.map(item => `${item.x},${item.y}`));
+
+    const groupedAll = {};
+    all_storage.forEach(({ x, y, z }) => {
+      const key = `${x},${y}`;
+      if (!groupedAll[key] || z > groupedAll[key].z) {
+        groupedAll[key] = { x, y, z }; // highest z
+      }
+    });
+
+    const augmentedStorage = [...storage];
+
+    Object.entries(groupedAll).forEach(([key, coord]) => {
+      if (!seen.has(key)) {
+        augmentedStorage.push(coord);
+      }
+    });
+
+    const lowestZMap = {};
+    augmentedStorage.forEach(item => {
+      const key = `${item.x},${item.y}`;
+      if (!(key in lowestZMap) || item.z < lowestZMap[key]) {
+        lowestZMap[key] = item.z;
+      }
+    });
+
+    const lowestStorage = Object.entries(lowestZMap).flatMap(([key, z]) => {
+      const [x, y] = key.split(',').map(Number);
+      return Array.from({ length: z + 1 }, (_, i) => ({ x, y, z: z - i }));
+    });
+
+    const currentWorkstations = workstation;
+    const workstationsWithZPlusOne = workstation.map(({ x, y, z }) => ({
+      x, y, z: z + 1
+    }));
+
+    const combinedPositions = [
+      ...currentWorkstations,
+      ...workstationsWithZPlusOne,
+      ...lowestStorage
+    ];
+
+    if (combinedPositions.length === 0) {
+      alert('No valid positions available.');
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * combinedPositions.length);
+    const chosenPosition = combinedPositions[randomIndex];
+    setList([chosenPosition]);
+    setNewRow(chosenPosition);
+  }
   return (
     <>
       {showRows && (
@@ -92,14 +211,16 @@ export default function InputRowsSection({
                 name={axis}
                 type="number"
                 fullWidth
-                disabled={type=='workstation'}
                 value={newRow[axis]}
-                onChange={(e) =>
-                  setNewRow((prev) => ({
-                    ...prev,
-                    [axis]: e.target.value,
-                  }))
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || Number.isInteger(Number(value))) {
+                    setNewRow((prev) => ({
+                      ...prev,
+                      [axis]: e.target.value,
+                    }))
+                  };
+                }}
               />
             </Grid>
           ))}
@@ -109,10 +230,16 @@ export default function InputRowsSection({
             disableElevation
             sx={{ height: '56px', minWidth: '56px' }}
             onClick={handleAdd}
-            disabled={type == 'workstation'}
           >
-            <AddIcon />
+            {type != 'robot' ? <AddIcon /> : 'SET'}
           </Button>
+          {type=="robot" && <Button
+            variant="contained"
+            disableElevation
+            sx={{ height: '56px', minWidth: '56px',backgroundColor:'' }}
+            onClick={randomPosition}>
+            Random
+          </Button>}
         </Stack>
       )}
     </>

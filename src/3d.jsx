@@ -16,7 +16,7 @@ function CameraController() {
     return null; // this component doesn't render anything itself
 }
 
-const StorageScene = React.memo(function StorageScene({ storage, all_storage = [], workstation = [] }) {
+const StorageScene = React.memo(function StorageScene({ storage, all_storage = [], workstation = [], robot = [] }) {
 
     const isStored = (item) =>
         storage.some(s => s.x === item.x && s.y === item.y && s.z === item.z);
@@ -73,6 +73,7 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
                     </group>
                 );
             })}
+
             {workstation.map((item, index) => {
                 const maxX = Math.max(...all_storage.map(item => item.x));
                 const basePos = [(maxX - item.x) * 1.7, item.y * 1.7, item.z * 1.2];
@@ -82,6 +83,19 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
                         <meshStandardMaterial color="black" />
                         <Edges scale={1.01} color="white" threshold={15} />
                     </mesh>);
+            })}
+
+            {robot.length > 0 && robot.map((item, index) => {
+                const maxX = Math.max(...all_storage.map(item => item.x));
+                const basePos = [(maxX - item.x) * 1.7, item.y * 1.7, item.z!=0 ? (item.z * 1.2) - 0.649: (item.z *1.2 - 0.07)];
+
+                return (
+                    <mesh key={`robot-${index}`} position={basePos}>
+                        <boxGeometry args={[1.2, 1.2, 0.5]} />
+                        <meshStandardMaterial color="white" />
+                        <Edges scale={1.01} color="black" threshold={15} />
+                    </mesh>
+                );
             })}
 
             {Array.from({ length: maxX + 1 }, (_, i) => (
