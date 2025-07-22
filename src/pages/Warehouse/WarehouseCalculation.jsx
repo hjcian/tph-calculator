@@ -1,14 +1,13 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import '../App.css';
 import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Container } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import { calculate_time, random_storage } from '../Calculate_time.jsx';
-import { display_result } from '../Display_result.jsx'
-import CustomizedDialogs from '../Dialog.jsx';
-import InputRowsSection from '../Input_Rows.jsx';
-import StorageTable from '../table.jsx';
-import StorageScene from '../3d.jsx';
-import Layout from '../Layout.jsx';
+import { calculate_time, random_storage } from './Calculate_time.jsx';
+import { display_result } from './Display_result.jsx'
+import CustomizedDialogs from '../../Components/Dialog.jsx';
+import InputRowsSection from '../../Components/Input_Rows.jsx';
+import StorageTable from '../../Components/table.jsx';
+import StorageScene from '../../Components/3d.jsx';
+import Layout from '../../Layout.jsx';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -25,8 +24,8 @@ export default function WarehouseCalculation() {
   const resultRef = useRef(null);
   const container_LocationRef = useRef(null);
   const pickingListRef = useRef(null);
-  const workstationRef = useRef(null);
-  const [workstationRows, setWorkstationRows] = useState([{ x: '', y: '', z: '' }]);
+  const portRef = useRef(null);
+  const [portRows, setportRows] = useState([{ x: '', y: '', z: '' }]);
   const [storageRows, setStorageRows] = useState([{ x: '', y: '', z: '' }]);
   const [pickingRows, setPickingRows] = useState([{ x: '', y: '', z: '' }]);
   const [pickingList, setPickingList] = useState([]);
@@ -34,7 +33,7 @@ export default function WarehouseCalculation() {
   const [breadth, setBreadth] = useState(5);
   const [height, setHeight] = useState(5);
   const [storage, setStorage] = useState([]);
-  const [workstation, setWorkstation] = useState([{ x: 0, y: 0, z: 0 }]);
+  const [port, setPort] = useState([{ x: 1, y: 0, z: 0 }]);
 
   const [robotRows, setRobotRows] = useState([{ x: '', y: '', z: '' }]);
   const [robotPosition, setRobotPosition] = useState([{ x: 0, y: 0, z: 1 }]);
@@ -83,21 +82,21 @@ export default function WarehouseCalculation() {
 
 
   useEffect(() => {
-    if (workstation.length === 0) {
-      setRobotPosition([{x:NaN,y:NaN,z:NaN}]);
+    if (port.length === 0) {
+      setRobotPosition([{ x: NaN, y: NaN, z: NaN }]);
     } else {
-      const ws = workstation[0];
+      const ws = port[0];
       setRobotPosition([{
         x: ws.x,
         y: ws.y,
-        z: ws.z +1
-      }])       
+        z: ws.z + 1
+      }])
     }
-  }, [workstation]);
+  }, [port]);
 
   useEffect(() => {
     setStorage([]);
-    setWorkstation([{ x: 0, y: 0, z: 0 }]);
+    setPort([{ x: 1, y: 0, z: 0 }]);
   }, [length, breadth, height]);
 
   const handleDeleteItem = (indexToDelete, setFunction) => {
@@ -176,7 +175,7 @@ export default function WarehouseCalculation() {
 
   const all_storage = useMemo(() => {
     const list = [];
-    for (let x = 0; x < length; x++) {
+    for (let x = 1; x <= length; x++) {
       for (let y = 1; y <= breadth; y++) {
         for (let z = 1; z <= height; z++) {
           list.push({ x, y, z });
@@ -224,7 +223,10 @@ export default function WarehouseCalculation() {
           });
           setStorage(newStorage);
           setPickingList([]);
-          setRobotPosition([{ x: 0, y: 0, z: 1 }])
+          setRobotPosition([
+            { ...port[0], z: port[0].z + 1 },
+            ...port.slice(1)
+          ]);
         }
       } else {
         let newStorage = random_storage(length, breadth, height, full_percentage);
@@ -255,7 +257,7 @@ export default function WarehouseCalculation() {
   };
 
   const handle_delete_all_ws = () => {
-    setWorkstation([]);
+    setPort([]);
   };
 
   const scrollAndNotify = (ref, message, severity = "error") => {
@@ -276,8 +278,8 @@ export default function WarehouseCalculation() {
     let time = 0;
     let relocate_time = 0;
 
-    if (workstation.length === 0) {
-      scrollAndNotify(workstationRef, "No Workstation 無工作站");
+    if (port.length === 0) {
+      scrollAndNotify(portRef, "No port 無工作站");
     } else if (storage.length === 0) {
       scrollAndNotify(container_LocationRef, "No Storage 無庫存");
     } else if (pickingList.length === 0) {
@@ -294,7 +296,7 @@ export default function WarehouseCalculation() {
     while (newPickingList.length > 0) {
       const containers = newPickingList[0];
       try {
-        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, workstation, newRobotPosition);
+        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, port, newRobotPosition);
         time += deltaTime;
         relocate_time += deltaRelocate;
         newStorage = newestStorage;
@@ -317,7 +319,7 @@ export default function WarehouseCalculation() {
       console.log(inboundclash_t, time / pickingList.length, relocate_time / pickingList.length);
       setResult(
         <Grid ref={resultRef}>
-          {display_result(work_t, inboundclash_t, time, relocate_time, pickingList.length, workstation.length)}
+          {display_result(work_t, inboundclash_t, time, relocate_time, pickingList.length, port.length)}
         </Grid>
       );
     }
@@ -325,7 +327,7 @@ export default function WarehouseCalculation() {
   }
 
   return (
-    <>
+    <Grid>
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
@@ -345,18 +347,23 @@ export default function WarehouseCalculation() {
       >
         <Stack direction="row" gap={2} alignItems="stretch" sx={{ alignItems: 'stretch' }}>
           <Stack spacing={2} width={"100%"}>
-            <Accordion defaultExpanded sx={{ border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.length || fieldErrors.breadth || fieldErrors.height) ? 'red' : '#ccc' }}>
+            <Accordion defaultExpanded sx={{
+              border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.length || fieldErrors.breadth || fieldErrors.height) ? 'red' : '#ccc',
+              '&:before': {
+                display: 'none',
+              },
+            }}>
               <AccordionSummary
                 component="div"
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
                 id="panel1-header"
                 sx={{ paddingLeft: 2 }}
-
+                overflow='hidden'
               >
-                <Stack direction="column">
-                  <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Storage Setting 庫存設置</Box></Typography>
-                  <Typography marginRight={1} color={'gray'}>Maximum Storage Capacity 貨架數量: {length * breadth * height}</Typography>
+                <Stack direction="column" overflow='hidden'>
+                  <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Nexano Layout 倉庫佈局</Box></Typography>
+                  <Typography marginRight={1} color={'gray'}>Maximum Location 最大諸位數量: {length * breadth * height}</Typography>
                 </Stack>
               </AccordionSummary>
               {/* <CustomizedDialogs /> */}
@@ -400,20 +407,26 @@ export default function WarehouseCalculation() {
               </AccordionDetails>
             </Accordion>
 
-            <Accordion sx={{ border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.work_t || workstation.length === 0) ? 'red' : '#ccc' }} ref={workstationRef}>
+            <Accordion sx={{
+              border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.work_t || port.length === 0) ? 'red' : '#ccc',
+              '&:before': {
+                display: 'none',
+              },
+            }} ref={portRef} >
               <AccordionSummary
                 component="div"
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
                 id="panel1-header"
                 sx={{ paddingLeft: 2 }}
+                overflow='hidden'
               >
                 <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
                   <Stack direction="column">
                     <Typography variant="h6" fontWeight={"bold"}>
-                      <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Workstation Setting 工作站設置 </Box>
+                      <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Port Setting 工作站口設置 </Box>
                     </Typography>
-                    <Typography marginRight={1} color={'gray'}>No. of Workstation(s) 工作站數量: {workstation.length}</Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Port(s) 工作站口數量: {port.length}</Typography>
                   </Stack>
                   <Stack direction="row" alignItems="center" sx={{ marginRight: 2 }}>
                     <Typography marginRight={1}>作業時間 (s):</Typography>
@@ -433,31 +446,37 @@ export default function WarehouseCalculation() {
               {/* <CustomizedDialogs /> */}
               <AccordionDetails>
                 <Stack direction={'column'} gap={1}>
-                  <Typography sx={{ alignSelf: 'flex-start' }}>Workstation Location:</Typography>
-                  {workstation.length > 0 && <StorageTable storage={workstation} onDelete={(index) => handleDeleteItem(index, setWorkstation)} onDeleteAll={handle_delete_all_ws} />}
+                  <Typography sx={{ alignSelf: 'flex-start' }}>Port Location:</Typography>
+                  {port.length > 0 && <StorageTable storage={port} onDelete={(index) => handleDeleteItem(index, setPort)} onDeleteAll={handle_delete_all_ws} />}
                   <InputRowsSection
-                    type="workstation"
-                    newRow={workstationRows}
-                    setNewRow={setWorkstationRows}
-                    list={workstation}
-                    setList={setWorkstation}
+                    type="port"
+                    newRow={portRows}
+                    setNewRow={setportRows}
+                    list={port}
+                    setList={setPort}
                     length={length}
                     breadth={breadth}
                     height={height}
                     storage={storage}
                     all_storage={all_storage}
-                    workstation={workstation}
+                    port={port}
                   />
                 </Stack>
               </AccordionDetails>
             </Accordion>
-            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }} ref={container_LocationRef}>
+            <Accordion sx={{
+              border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              '&:before': {
+                display: 'none',
+              },
+            }} ref={container_LocationRef}>
               <AccordionSummary
                 component="div"
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
                 id="panel1-header"
                 sx={{ paddingLeft: 2 }}
+                overflow='hidden'
               >
                 <Stack
                   direction="row"
@@ -466,8 +485,8 @@ export default function WarehouseCalculation() {
                   width="100%"
                 >
                   <Stack direction="column">
-                    <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container(s) Location 膠箱位置</Box> </Typography>
-                    <Typography marginRight={1} color={'gray'}>No. of Container(s) 膠箱數量:{storage.length}</Typography>
+                    <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><InventoryIcon />Container(s) Setting 容器位置</Box> </Typography>
+                    <Typography marginRight={1} color={'gray'}>No. of Container(s) 容器數量: {storage.length}</Typography>
                   </Stack>
                   <Stack direction="row" gap={3} alignItems="center" ml="auto" sx={{ marginRight: 2 }}>
                     <Stack flex={3} direction={'row'} alignItems={'center'} gap={1}>
@@ -479,7 +498,7 @@ export default function WarehouseCalculation() {
                         label={fieldErrors.full_percentage}
                         type="number"
                         name="full_percentage"
-                        sx={{ flex: 1, maxWidth: 80, minWidth:65 }} />
+                        sx={{ flex: 1, maxWidth: 80, minWidth: 65 }} />
                       <Typography>% Full</Typography>
                     </Stack>
 
@@ -521,23 +540,29 @@ export default function WarehouseCalculation() {
                     height={height}
                     storage={storage}
                     all_storage={all_storage}
-                    workstation={workstation}
+                    port={port}
                   />
                 </Stack>
               </AccordionDetails>
             </Accordion>
 
-            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+            <Accordion sx={{
+              border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              '&:before': {
+                display: 'none',
+              },
+            }}>
               <AccordionSummary
                 component="div"
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
                 id="panel1-header"
                 sx={{ paddingLeft: 2 }}
+                overflow='hidden'
               >
                 <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> Robot Setting 機器人設置 </Box></Typography>
-                  <Typography color={'gray'}>Current Position ({robotPosition[0].x},{robotPosition[0].y},{robotPosition[0].z})</Typography>
+                  <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> RGV Setting 機器人設置 </Box></Typography>
+                  <Typography color={'gray'}>Current Node ({robotPosition[0].x},{robotPosition[0].y},{robotPosition[0].z})</Typography>
                 </Stack>
               </AccordionSummary>
 
@@ -604,7 +629,7 @@ export default function WarehouseCalculation() {
                   </Stack>
                   <Stack gap={1} backgroundColor={"#FAFAFA"} padding={2}>
                     <Stack direction={'row'} gap={3}>
-                      <Typography sx={{ textAlign: 'left', fontWeight: 'bold' }}>Starting Position:</Typography>
+                      <Typography sx={{ textAlign: 'left', fontWeight: 'bold' }}>Starting Node:</Typography>
                     </Stack>
 
                     <InputRowsSection
@@ -618,7 +643,7 @@ export default function WarehouseCalculation() {
                       height={height}
                       storage={storage}
                       all_storage={all_storage}
-                      workstation={workstation}
+                      port={port}
                     />
                   </Stack>
 
@@ -627,9 +652,12 @@ export default function WarehouseCalculation() {
               </AccordionDetails>
             </Accordion>
 
-
-
-            <Accordion sx={{ border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2 }}>
+            <Accordion sx={{
+              border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              '&:before': {
+                display: 'none',
+              },
+            }}>
               <AccordionSummary
                 component="div"
                 expandIcon={<ExpandMoreIcon />}
@@ -637,6 +665,7 @@ export default function WarehouseCalculation() {
                 id="panel1-header"
                 sx={{ paddingLeft: 2 }}
                 ref={pickingListRef}
+                overflow='hidden'
               >
                 <Stack
                   direction="row"
@@ -652,10 +681,10 @@ export default function WarehouseCalculation() {
                     >
                       <Box display="flex" alignItems="center" gap={1}>
                         <ListAltIcon />
-                        Picking List 揀貨單
+                        Picking Container(s) 目標容器
                       </Box>
                     </Typography>
-                    <Typography marginRight={1} color={'gray'}>List Count 揀貨單數量:{pickingList.length}</Typography>
+                    <Typography marginRight={1} color={'gray'}>Container Count 目標容器數量: {pickingList.length}</Typography>
                   </Stack>
                   <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }}>
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
@@ -697,7 +726,7 @@ export default function WarehouseCalculation() {
                     height={height}
                     storage={storage}
                     all_storage={all_storage}
-                    workstation={workstation}
+                    port={port}
                   />
                 </Stack>
 
@@ -708,7 +737,7 @@ export default function WarehouseCalculation() {
             height: 370,
             width: 450,
             position: 'sticky',
-            top: 10,
+            top: 70,
             alignSelf: 'flex-start',
           }}>
             <Paper
@@ -720,16 +749,17 @@ export default function WarehouseCalculation() {
                 transition: 'height 0.3s ease',
                 display: 'flex',
                 alignItems: 'stretch',
+                overflow: 'hidden'
               }}
               elevation={0}
-            >{(length > 0 && breadth > 0 && height > 0 && length * breadth * height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} workstation={workstation} robot={robotPosition} />) :
+            >{(length > 0 && breadth > 0 && height > 0 && length * breadth * height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} port={port} robot={robotPosition} />) :
               <Grid height={'100%'} alignContent={'center'} margin={1}><Typography>Preview is unavailable for this configuration</Typography></Grid>}
             </Paper>
             <Button onClick={handleFinalSubmit} variant="contained" disableElevation sx={{ backgroundColor: "#dd5716", display: "flex", width: "100%" }}>計算時間</Button>
           </Stack>
         </Stack>
         {result}
-      </Stack>
-    </ >
+      </Stack >
+    </Grid>
   );
 }

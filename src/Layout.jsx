@@ -8,7 +8,7 @@ const Layout = ({ children }) => {
       <CustomBar />
 
       {/* Main content */}
-      <Container component="main" sx={{ flex: 1 }}>
+      <Container component="main" sx={{ flex: 1, marginTop:2,marginBottom:2 }}>
         {children}
       </Container>
     </Box>

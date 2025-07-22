@@ -1,12 +1,41 @@
-# React + Vite
+# TPH Calculator in MFC
+Used in TAC Dynamics 泰科動力
+## Overview
+This tool is used to calculate efficiency based on warehouse configuration and robot speed. It will also reccommend the most cost effective option for optimal warehouse Throughput per Hour (TPH).
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Features
+- Customisable Storage Setting (Length *Breadth *Height)
+- Customisable port location (Current Limitation: available only on x=0 axis)
+- Customisable Container(s) Location with ability to generate random storage
+- Customisable Robot configuration along with starting point
+- Customisable Picking List plus randomness
 
-Currently, two official plugins are available:
+## Calculation Model
+The tool uses a **simplified single-robot time model**, broken into the following components:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| Step      | Description                                                           |
+|-----------|-----------------------------------------------------------------------|
+| **M1**    | Time spent moving from  to blocking, if needed   |
+| **R**     | Time spent relocating blocking container(s), if needed                |
+| **M2**    | Time spent moving from robot position to intended container      |
+| **Outbound** | Time spent moving the intended container to the port       |
+| **Ws**    | Time spent at the port                                         |
+| **Inbound** | Time spent returning to original container's position          |
 
-## Expanding the ESLint configuration
+TPH for 1 robot is calculated through the formula:
+$$\text{TPH} \approx \dfrac{3600}{\text{(Total relocate time} + \text{Total time)/pick count + port time}} \times \text{port count (if required)}$$
+- **3600**: 1 hour in seconds
+- **Total relocate time:** total time spent on relocating for the system. This time includes M1 (to blocking containers) and R.
+- **Total time:** total base time spent on actual picks *excluding* relocate phase. This time includes M2 Outbound and Inbound.
+- **pick count:** number of picks done.
+- **port time:** time spent on port for each pick.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+///Need clarification
+- **port count:** exists only if port time > **port count -1 (need cfm)** * average time spent on M1+ R+ M2+ Outbound+ Inbound, else ```port count = 1```. If time spent on WS is too long, robot has enough time to move another container, thus increasing TPH by no. of ports.
+
+{Math.ceil((((relocate_time + time / 2) / pick_number) - inboundclash_t) / work_t) * ws_number}
+
+$$\text{Reccomended No. of Robots = }$$
+
+This model calculates the average time spent on 1 pick and estimates TPH and recommended number of robots.
+

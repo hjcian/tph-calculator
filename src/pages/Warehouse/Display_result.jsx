@@ -4,7 +4,7 @@ import { BlockMath, InlineMath } from 'react-katex';
 
 export function display_result(work_t, inboundclash_t, time, relocate_time, pick_number, ws_number) {
     let multiply_ws = false;
-    if(work_t>(time+relocate_time)/pick_number){
+    if(work_t>((time+relocate_time)/pick_number)*(ws_number-1)){
         multiply_ws = true;
     }
     return (
@@ -19,7 +19,7 @@ export function display_result(work_t, inboundclash_t, time, relocate_time, pick
                     <Typography variant="h4" fontWeight='bold'>Throughput Per Hour (TPH):{(((60 * 60) / ((relocate_time + time) / pick_number + work_t))*(multiply_ws ? ws_number : 1)).toFixed(2)}</Typography>
                     <BlockMath math="TPH = \frac{60\times60}{\text{Time for one full movement cycle (s)}}" />
                     <Typography>Total Time Spent 花費時間:{(time + relocate_time + (work_t * pick_number)).toFixed(2)} s </Typography>
-                    <Typography>Total Time Spent on Workstation:{(work_t * pick_number).toFixed(2)} s </Typography>
+                    <Typography>Total Time Spent on port:{(work_t * pick_number).toFixed(2)} s </Typography>
                     <Typography>Total Time Spent on Transporting:{(time + relocate_time).toFixed(2)} s</Typography>
                     <Divider orientation="horizontal" flexItem />
                     <Typography>Average Time Spent relocating for each container:{(relocate_time / (pick_number)).toFixed(2)} s</Typography>
@@ -35,7 +35,7 @@ export function display_result(work_t, inboundclash_t, time, relocate_time, pick
                     <Typography variant="h4" fontWeight='bold'>Recommended No. of Robot(s):{Math.ceil((((relocate_time + time / 2) / pick_number) - inboundclash_t) / work_t) * ws_number}</Typography>
                     <Typography>Estimated New TPH: {(((60 * 60) / ((relocate_time + time) / pick_number + work_t)) * Math.ceil((((relocate_time + time / 2) / pick_number) - inboundclash_t) / work_t) * ws_number).toFixed(2)} </Typography>
                     <div style={{ fontSize: '0.7em' }}>
-                        <BlockMath math="TPH = \frac{60\times60}{\text{Time for one full movement cycle (s)}}\times \text{No. of Robots}\times\text{No. of Workstations}" />
+                        <BlockMath math="TPH = \frac{60\times60}{\text{Time for one full movement cycle (s)}}\times \text{No. of Robots}\times\text{No. of ports}" />
                     </div>
                 </Stack>
             </Paper>
