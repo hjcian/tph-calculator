@@ -13,18 +13,18 @@ export default function InputRowsSection({
   type = 'storage',
   storage = [],
   all_storage = [],
-  workstation = [],
+  port = [],
 }) {
 
   const typeLabels = {
     storage: '儲存',
-    workstation: '工作站',
+    port: '工作站',
     picking: '揀貨',
   };
 
   const listNames = {
     storage: 'storage',
-    workstation: 'workstation',
+    port: 'port',
     picking: 'picking list',
   };
 
@@ -50,7 +50,7 @@ export default function InputRowsSection({
     }
 
     if (type == 'picking' || type == 'storage') {
-      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x <= length && y <= breadth && z <= height && z > 0) {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && (x <= length && y!==0) && (y <= breadth &&x!=0) && z <= height && z > 0) {
         if (type === 'picking') {
           const isExist = storage.some(
             (item) =>
@@ -77,8 +77,8 @@ export default function InputRowsSection({
       } else {
         alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
       }
-    } else if (type == 'workstation') {
-      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && x >= 0 && x < length && y == 0 && z == 0) {
+    } else if (type == 'port') {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && ((x >= 0 && x <= length && y == 0)||(y>=0 && y<= breadth && x==0)) && z == 0 && !(x==0 && y==0)) {
         setList((prev) => [...prev, { x, y, z }]);
       }
       else {
@@ -118,14 +118,14 @@ export default function InputRowsSection({
           return Array.from({ length: z + 1 }, (_, i) => ({ x, y, z: z - i }));
         });
 
-        const currentWorkstations = workstation;
-        const workstationsWithZPlusOne = workstation.map(({ x, y, z }) => ({
+        const currentports = port;
+        const portsWithZPlusOne = port.map(({ x, y, z }) => ({
           x, y, z: z + 1
         }));
 
         const combinedPositions = [
-          ...currentWorkstations,
-          ...workstationsWithZPlusOne,
+          ...currentports,
+          ...portsWithZPlusOne,
           ...lowestStorage
         ];
 
@@ -139,7 +139,7 @@ export default function InputRowsSection({
         if (inAvailable) {
           setList([{ x, y, z }]);
         } else {
-          alert(`位置必須在工作站，或是在容器下方無阻擋的位置。\nThe position must be at a workstation or at a place with no container blocking underneath.`);
+          alert(`位置必須在工作站，或是在容器下方無阻擋的位置。\nThe position must be at a port or at a place with no container blocking underneath.`);
         }
       } else {
         alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
@@ -180,14 +180,14 @@ export default function InputRowsSection({
       return Array.from({ length: z + 1 }, (_, i) => ({ x, y, z: z - i }));
     });
 
-    const currentWorkstations = workstation;
-    const workstationsWithZPlusOne = workstation.map(({ x, y, z }) => ({
+    const currentports = port;
+    const portsWithZPlusOne = port.map(({ x, y, z }) => ({
       x, y, z: z + 1
     }));
 
     const combinedPositions = [
-      ...currentWorkstations,
-      ...workstationsWithZPlusOne,
+      ...currentports,
+      ...portsWithZPlusOne,
       ...lowestStorage
     ];
 

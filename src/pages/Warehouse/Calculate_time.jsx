@@ -2,10 +2,10 @@ import { Stack, Typography, Divider } from "@mui/material";
 import 'katex/dist/katex.min.css';
 import { BlockMath, InlineMath } from 'react-katex';
 
-export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, storage, pickingList=[], workstation, robotPosition) {
+export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, storage, pickingList = [], port, robotPosition) {
     let time = 0;
     let blocking_time = 0;
-    console.log("x, y, z", x, y, z);
+    console.log("[NEW CYCLE] x, y, z", x, y, z);
 
     console.log("ROB", robotPosition);
     if (storage != []) {
@@ -35,11 +35,13 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
 
             //from start point to first blocking container
             blocking_time += point_to_point_time(robotPosition, container, trf_t, climb_t, turn_t, move_t_1, move_t_long, "");
-
+            console.log("Robot Position",robotPosition, "to Blocking Container",container,"is", blocking_time);
             //console.log("target", container.x, container.y, empty_storage);
             blocking_time += point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long, "");
+            console.log("Blocking Container",container,"to Target location",target,"is", blocking_time);
 
             blocking_container = blocking_container.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
+
             storage = storage.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
             storage.push(target);
             robotPosition = target;
@@ -67,18 +69,20 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
 
     if (x >= 0 && y >= 0 && z > 0) {
 
-        //Find nearest workstation
-        const target_ws = find_lowest_z_nearest_xy(x, y, workstation);
-        console.log("targetWS", target_ws);
         const pointArray = { x, y, z };
-        console.log("pointArray", pointArray);
 
         //travel to container location
         time = point_to_point_time(robotPosition, pointArray, trf_t, climb_t, turn_t, move_t_1, move_t_long);
-        console.log("robot move to container", time);
+
+        console.log("Robot from", robotPosition, "to wanted container", pointArray, "is", time);
         robotPosition = pointArray;
-        //travel to workstation
-        time += point_to_point_time(pointArray, target_ws, trf_t, climb_t, turn_t, move_t_1, move_t_long, "workstation") * 2;
+        //Find nearest port
+        const target_ws = find_lowest_z_nearest_xy(x, y, port);
+        console.log("targetWS", target_ws);
+
+        //travel to port
+        time += point_to_point_time(robotPosition, target_ws, trf_t, climb_t, turn_t, move_t_1, move_t_long, "port") * 2;
+        console.log("wanted container", robotPosition, "to WS", target_ws, "and back spend", time);
 
         // if (x == 0 && y > 0) {  //A Column
         //     if (y == 1) {
@@ -114,17 +118,17 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
         // if (y != 0 && z > 0) {
         //     time += trf_t + z * climb_t + turn_t;
         // }
-        console.log("Timenow", time);
-        console.log("Total Blockingtime", blocking_time);
+        console.log("Total Time", time);
+        console.log("Total Blocking Time", blocking_time);
         console.log("Newest Picking List", [...pickingList.map(item => ({ ...item }))]);
         console.log("Undefiend storage", storage);
 
         const updatedPickingList = pickingList.filter(
             item => !(item.x === x && item.y === y && item.z === z)
         );
-        
-        console.log("updatedPickingList",updatedPickingList);
-        console.log("CHECK",[storage, updatedPickingList, robotPosition, time, blocking_time]);
+
+        console.log("updatedPickingList", updatedPickingList);
+        console.log("CHECK", [storage, updatedPickingList, robotPosition, time, blocking_time]);
         return (!isNaN(time) && [storage, updatedPickingList, robotPosition, time, blocking_time]);
     };
 }
@@ -191,18 +195,15 @@ function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1
             add_time = move_t_1 + (x_distance - 1) * move_t_long;
         } else { //need move in both x and y direction
             add_time = move_t_1 + (x_distance - 1) * move_t_long + move_t_1 + (y_distance - 1) * move_t_long + trf_t;
-            console.log("timenow", add_time);
         }
         add_time += z * climb_t + trf_t + turn_t;
-        console.log("timenow2", add_time);
-        if (mode == "workstation") {
+        if (mode == "port") {
             add_time += (target_z + 1) * climb_t + trf_t + turn_t;
         } else {
             add_time += (target_z) * climb_t + trf_t + turn_t;
         }
     }
 
-    console.log("additional time", add_time);
     return add_time;
 }
 
@@ -221,7 +222,7 @@ export function random_storage(length, breadth, height, full_percentage) {
         Math.floor(Math.random() * (max - min + 1)) + min;
 
     while (filled_bins < target_fill && attempts < maxAttempts) {
-        const x = getRandomInt(0, length - 1);
+        const x = getRandomInt(1, length);
         const y = getRandomInt(1, breadth);
         const key = `${x},${y}`;
 

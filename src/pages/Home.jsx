@@ -1,5 +1,9 @@
 import { Typography } from "@mui/material";
 
 export default function Home() {
-  return <Typography>Efficiency Tool</Typography>;
+  return (
+    <>
+      <Typography>Efficiency Tool</Typography>
+    </>
+  );
 }
