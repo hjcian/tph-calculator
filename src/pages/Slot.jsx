@@ -13,8 +13,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export default function Slot() {
   // Store inputs as strings so TextField works cleanly; convert when needed
-  const [total_skus, setTotalSkus] = useState("1600");
-  const [target_skus, setTargetSkus] = useState("600");
+  const [total_sku, setTotalsku] = useState("1600");
+  const [target_sku, setTargetsku] = useState("600");
   const [slot, setSlot] = useState("4");
 
   const [nonZero, setNonZero] = useState(0); // last single-run result
@@ -22,29 +22,27 @@ export default function Slot() {
   const [stats, setStats] = useState(null);   // { min, max, mean }
 
   const [fieldErrors, setFieldErrors] = useState({
-    total_skus: "",
-    target_skus: "",
+    total_sku: "",
+    target_sku: "",
     slot: ""
   });
 
-  // --- helpers -------------------------------------------------------------
   const parseIntSafe = (v) => {
     const n = parseInt(v, 10);
     return Number.isFinite(n) ? n : 0;
   };
 
   const simulateOnce = (total, target, slotSize) => {
-    // containers = total_skus / slot
-    const containers = Math.max(0, Math.floor(total / slotSize));
+    // containers = total_sku / slot
+    const containers = Math.max(0, Math.ceil(total / slotSize));
     if (containers === 0) return 0;
 
-    // Hard capacity cap (4 per container per your logic)
-    const maxCapacity = containers * 4;
+    const maxCapacity = containers * slotSize;
     let remaining = Math.min(target, maxCapacity);
 
     const arr = new Array(containers).fill(0);
     for (let i = 0; i < containers && remaining > 0; i++) {
-      let r = Math.floor(Math.random() * 4) + 1;
+      let r = Math.floor(Math.random() * slotSize) + 1;
       if (r > remaining) r = remaining;
       arr[i] = r;
       remaining -= r;
@@ -52,11 +50,10 @@ export default function Slot() {
     return arr.reduce((acc, v) => (v > 0 ? acc + 1 : acc), 0);
   };
 
-  // --- events --------------------------------------------------------------
   const handleDimensionChange = (field, value) => {
     // keep strings for inputs
-    if (field === "total_skus") setTotalSkus(value);
-    if (field === "target_skus") setTargetSkus(value);
+    if (field === "total_sku") setTotalsku(value);
+    if (field === "target_sku") setTargetsku(value);
     if (field === "slot") setSlot(value);
     // light validation example (optional)
     setFieldErrors((prev) => ({
@@ -65,20 +62,17 @@ export default function Slot() {
     }));
   };
 
-  // Single simulation (original behavior)
   const handleGenerateSingle = () => {
-    const total = parseIntSafe(total_skus);
-    const target = parseIntSafe(target_skus);
+    const total = parseIntSafe(total_sku);
+    const target = parseIntSafe(target_sku);
     const slotSize = parseIntSafe(slot);
-    const nz = simulateOnce(total, target, slotSize);
-    setNonZero(nz);
+    setNonZero(simulateOnce(total, target, slotSize));
     console.log("Single run nonZero:", nz);
   };
 
-  // 10,000 simulations + scatter data
   const handleGenerateMany = (runs = 10000) => {
-  const total = parseIntSafe(total_skus);
-  const target = parseIntSafe(target_skus);
+  const total = parseIntSafe(total_sku);
+  const target = parseIntSafe(target_sku);
   const slotSize = parseIntSafe(slot);
 
   const data = new Array(runs);
@@ -110,34 +104,35 @@ export default function Slot() {
       count
     }));
   };
-  // --- render --------------------------------------------------------------
+
   return (
     <Stack direction={"column"} gap={2}>
+      <Typography>情景：假設共有 1600 SKU 隨機被放進 400 個 4 格箱中。欲出貨 16 SKU,則需要出几箱？</Typography>
       {/* Inputs */}
       <Stack direction={"row"} alignItems={"center"} gap={1}>
-        <Typography>SKUs 數量:</Typography>
+        <Typography>SKU 數量:</Typography>
         <TextField
-          value={total_skus}
-          onChange={(e) => handleDimensionChange("total_skus", e.target.value)}
-          error={!!fieldErrors.total_skus}
-          label={fieldErrors.total_skus}
+          value={total_sku}
+          onChange={(e) => handleDimensionChange("total_sku", e.target.value)}
+          error={!!fieldErrors.total_sku}
+          label={fieldErrors.total_sku}
           type="number"
           step="1"
-          name="total_skus"
+          name="total_sku"
           sx={{ flex: 1 }}
         />
       </Stack>
 
       <Stack direction={"row"} alignItems={"center"} gap={1}>
-        <Typography>目標SKUs 數量:</Typography>
+        <Typography>目標sku 數量:</Typography>
         <TextField
-          value={target_skus}
-          onChange={(e) => handleDimensionChange("target_skus", e.target.value)}
-          error={!!fieldErrors.target_skus}
-          label={fieldErrors.target_skus}
+          value={target_sku}
+          onChange={(e) => handleDimensionChange("target_sku", e.target.value)}
+          error={!!fieldErrors.target_sku}
+          label={fieldErrors.target_sku}
           type="number"
           step="1"
-          name="target_skus"
+          name="target_sku"
           sx={{ flex: 1 }}
         />
       </Stack>
