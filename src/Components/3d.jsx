@@ -51,7 +51,6 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
     return (
         <Canvas>
             <CameraController />
-            <pointLight position={[10, 10, 10]} color="white" intensity={1} />
             <OrbitControls
                 makeDefault
                 target={[4, 3, 1]}
@@ -129,6 +128,16 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
                         <boxGeometry args={[1.45, 1.45, 1.2]} />
                         <meshStandardMaterial color="black" />
                         <Edges scale={1.01} color="white" threshold={15} />
+                    </mesh>);
+            })}
+
+            {port.map((item, index) => {
+                const maxX = Math.max(...all_storage.map(item => item.x));
+                const basePos = [(maxX - item.x) * 1.7, item.y * 1.7, item.z* 1.2];
+                return (
+                    <mesh key={`ws-${index}`} position={[basePos[0], basePos[1], basePos[2] + 0.8]}>
+                        <boxGeometry args={[1.5, 1.5, 0.1]} /> {/* Same as dark gray floor */}
+                        <meshStandardMaterial color="yellow" transparent opacity={0.4} depthWrite={false} />
                     </mesh>);
             })}
 

@@ -41,16 +41,18 @@ export default function InputRowsSection({
     );
 
     if (isDuplicate) {
-      if (type != 'robot') {
-        alert(`容器 (${x}, ${y}, ${z}) 已存在於${typeLabel}中\nThe container (${x}, ${y}, ${z}) already exists in the ${listName}.`);
+      if (type == 'port') {
+        alert(`工作站口 (${x}, ${y}, ${z})已存在\nThe port (${x}, ${y}, ${z}) already exists`);
       } else if (type == 'robot') {
         alert(`機器人已在 (${x}, ${y}, ${z})\n Robot is already at (${x}, ${y}, ${z}).`);
+      } else {
+        alert(`容器 (${x}, ${y}, ${z}) 已存在於${typeLabel}中\nThe container (${x}, ${y}, ${z}) already exists in the ${listName}.`);
       }
       return;
     }
 
     if (type == 'picking' || type == 'storage') {
-      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && (x <= length && y!==0) && (y <= breadth &&x!=0) && z <= height && z > 0) {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && (x <= length && y !== 0) && (y <= breadth && x != 0) && z <= height && z > 0) {
         if (type === 'picking') {
           const isExist = storage.some(
             (item) =>
@@ -78,7 +80,7 @@ export default function InputRowsSection({
         alert(`請輸入有效的 (x, y, z) 位置\nPlease enter a valid (x, y, z) location within bounds.`);
       }
     } else if (type == 'port') {
-      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && ((x >= 0 && x <= length && y == 0)||(y>=0 && y<= breadth && x==0)) && z == 0 && !(x==0 && y==0)) {
+      if (!isNaN(x) && !isNaN(y) && !isNaN(z) && ((x >= 0 && x <= length && y == 0) || (y >= 0 && y <= breadth && x == 0)) && z == 0 && !(x == 0 && y == 0)) {
         setList((prev) => [...prev, { x, y, z }]);
       }
       else {
@@ -233,10 +235,10 @@ export default function InputRowsSection({
           >
             {type != 'robot' ? <AddIcon /> : 'SET'}
           </Button>
-          {type=="robot" && <Button
+          {type == "robot" && <Button
             variant="contained"
             disableElevation
-            sx={{ height: '56px', minWidth: '56px',backgroundColor:'' }}
+            sx={{ height: '56px', minWidth: '56px', backgroundColor: '' }}
             onClick={randomPosition}>
             Random
           </Button>}

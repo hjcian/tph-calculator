@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Container } from '@mui/material';
+import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box,Switch } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import { calculate_time, random_storage } from './Calculate_time.jsx';
 import { display_result } from './Display_result.jsx'
@@ -40,7 +40,7 @@ export default function WarehouseCalculation() {
 
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-
+  const [smartRelocation,setSmartRelocation]=useState(true);
   ///
   const [move_t_1, setMove_t_1] = useState(4);
   const [move_t_long, setMove_t_long] = useState(0.6);
@@ -189,6 +189,13 @@ export default function WarehouseCalculation() {
     setPickingList(storage);
   };
 
+  const handle_relocation_method = () =>{
+    if(smartRelocation==false){
+      setSmartRelocation(true);
+    } else {
+      setSmartRelocation(false);
+    }
+  }
   const handle_random_calculate = () => {
     let shuffledList = [...pickingList];
     let i;
@@ -211,7 +218,7 @@ export default function WarehouseCalculation() {
   const handle_generate_random_storage = () => {
     if (validateInputs()) {
       if (storage.length > 0 || (robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)))) {
-        const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${((pickingList.length > 0 || robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)))) ? "\nThis will also affect the following:" : ''}${pickingList.length > 0 ? `\n- Clear existing picking list.` : ''}${robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)) ? `\n- Reset Robot position.` : ''}\n\nThis action cannot be reversed.`);
+        const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${((pickingList.length > 0 || robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)))) ? "\nThis will also affect the following:" : ''}${pickingList.length > 0 ? `\n- Clear existing picking list.` : ''}${robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)) ? `\n- Reset Robot position.` : ''}\n\nThis action cannot be reversed.`);
 
         let newStorage = random_storage(length, breadth, height, full_percentage);
         if (confirmClear) {
@@ -256,7 +263,7 @@ export default function WarehouseCalculation() {
     // console.log("storage gen", newStorage);
   };
 
-  const handle_delete_all_ws = () => {
+  const handle_delete_allport = () => {
     setPort([]);
   };
 
@@ -292,11 +299,10 @@ export default function WarehouseCalculation() {
     let newPickingList = pickingList.map(item => ({ ...item }));
     let newRobotPosition = robotPosition[0] || {};;
     console.log("PICKINGLIST Will update", [...newPickingList.map(item => ({ ...item }))]);
-
     while (newPickingList.length > 0) {
       const containers = newPickingList[0];
       try {
-        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, port, newRobotPosition);
+        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, port, newRobotPosition, smartRelocation);
         time += deltaTime;
         relocate_time += deltaRelocate;
         newStorage = newestStorage;
@@ -424,7 +430,7 @@ export default function WarehouseCalculation() {
                 <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
                   <Stack direction="column">
                     <Typography variant="h6" fontWeight={"bold"}>
-                      <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Port Setting 工作站口設置 </Box>
+                      <Box display="flex" alignItems="center" gap={1}><EngineeringIcon /> Port(s) Setting 工作站口設置 </Box>
                     </Typography>
                     <Typography marginRight={1} color={'gray'}>No. of Port(s) 工作站口數量: {port.length}</Typography>
                   </Stack>
@@ -447,7 +453,7 @@ export default function WarehouseCalculation() {
               <AccordionDetails>
                 <Stack direction={'column'} gap={1}>
                   <Typography sx={{ alignSelf: 'flex-start' }}>Port Location:</Typography>
-                  {port.length > 0 && <StorageTable storage={port} onDelete={(index) => handleDeleteItem(index, setPort)} onDeleteAll={handle_delete_all_ws} />}
+                  {port.length > 0 && <StorageTable storage={port} onDelete={(index) => handleDeleteItem(index, setPort)} onDeleteAll={handle_delete_allport} />}
                   <InputRowsSection
                     type="port"
                     newRow={portRows}
@@ -560,7 +566,7 @@ export default function WarehouseCalculation() {
                 sx={{ paddingLeft: 2 }}
                 overflow='hidden'
               >
-                <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center">
+                <Stack width="100%" direction="row" justifyContent="space-between" alignItems="center" sx={{ marginRight: 2 }}>
                   <Typography variant="h6" fontWeight={"bold"}><Box display="flex" alignItems="center" gap={1}><SmartToySharpIcon /> RGV Setting 機器人設置 </Box></Typography>
                   <Typography color={'gray'}>Current Node ({robotPosition[0].x},{robotPosition[0].y},{robotPosition[0].z})</Typography>
                 </Stack>
@@ -686,7 +692,7 @@ export default function WarehouseCalculation() {
                     </Typography>
                     <Typography marginRight={1} color={'gray'}>Container Count 目標容器數量: {pickingList.length}</Typography>
                   </Stack>
-                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }}>
+                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }} alignItems={'center'}>
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
                       sx={{
                         backgroundColor: 'orange',
@@ -694,6 +700,10 @@ export default function WarehouseCalculation() {
                         padding: '4px 8px',  // scale down padding
                         minWidth: 'auto',    // prevent fixed size
                       }}>Pick All 全選 (Best Case)</Button>}
+                      
+                    {pickingList.length>0 && <Stack alignContent={'center'} direction={'row '}><Switch checked={smartRelocation} onClick={(e) => { e.stopPropagation(); handle_relocation_method(); }} ></Switch>
+                    <Typography>Smart Relocation</Typography>
+                    </Stack>}
                     {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_random_calculate(); }} disableElevation
                       sx={{
                         fontSize: '0.75rem', // scale down text

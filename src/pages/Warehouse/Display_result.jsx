@@ -3,9 +3,9 @@ import 'katex/dist/katex.min.css';
 import { BlockMath, InlineMath } from 'react-katex';
 
 export function display_result(work_t, inboundclash_t, time, relocate_time, pick_number, ws_number) {
-    let multiply_ws = false;
+    let multiplyport = false;
     if(work_t>((time+relocate_time)/pick_number)*(ws_number-1)){
-        multiply_ws = true;
+        multiplyport = true;
     }
     return (
         <Stack direction={'row'} gap={1}>
@@ -16,11 +16,13 @@ export function display_result(work_t, inboundclash_t, time, relocate_time, pick
             >
                 <Stack display="flex" alignItems={'center'} direction={'column'} gap={1} >
                     <Typography>1 Robot</Typography>
-                    <Typography variant="h4" fontWeight='bold'>Throughput Per Hour (TPH):{(((60 * 60) / ((relocate_time + time) / pick_number + work_t))*(multiply_ws ? ws_number : 1)).toFixed(2)}</Typography>
+                    <Typography variant="h4" fontWeight='bold'>Throughput Per Hour (TPH):{(((60 * 60) / ((relocate_time + time) / pick_number + work_t))*(multiplyport ? ws_number : 1)).toFixed(2)}</Typography>
                     <BlockMath math="TPH = \frac{60\times60}{\text{Time for one full movement cycle (s)}}" />
                     <Typography>Total Time Spent 花費時間:{(time + relocate_time + (work_t * pick_number)).toFixed(2)} s </Typography>
                     <Typography>Total Time Spent on port:{(work_t * pick_number).toFixed(2)} s </Typography>
                     <Typography>Total Time Spent on Transporting:{(time + relocate_time).toFixed(2)} s</Typography>
+                    <Typography>Total Time Spent on Time:{(time).toFixed(2)} s</Typography>
+                    <Typography>Total Time Spent on Relocate:{( relocate_time).toFixed(2)} s</Typography>
                     <Divider orientation="horizontal" flexItem />
                     <Typography>Average Time Spent relocating for each container:{(relocate_time / (pick_number)).toFixed(2)} s</Typography>
                     <Typography>Average Time Spent Inbound & Outbound for each container:{(time / (pick_number)).toFixed(2)} s</Typography>

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
   Button,
   Typography,
@@ -10,22 +10,40 @@ import {
   Alert,
 } from '@mui/material';
 import { FixedSizeGrid as Grid } from 'react-window';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+
 import { parseExcelFile } from './ParseExcelFile';
 
-// -----------------------------------------------------------------------------
-// Config: column header names we expect in the Excel file
-// -----------------------------------------------------------------------------
-const ORDER_FIELD = '單號';       // row dimension
-const PRODUCT_FIELD = '品號';     // column dimension
-const QTY_FIELD = '出貨數量';     // numeric value
+const ORDER_FIELD = '單號';        // row
+const PRODUCT_FIELD = '品號';      // column
+const QTY_FIELD = '出貨數量';      // numeric value
 const TOTAL_LABEL = '總計';
+const COUNT_LABEL = '品項';
 
-// -----------------------------------------------------------------------------
-// Pivot builder (row = 單號, col = 品號, val = 出貨數量)
-// Produces row & column totals and returns { columns, rows }.
-// columns = [...unique 品號..., '總計']
-// rows = [ {rowLabel: 單號, <col vals>..., '總計': #}, ..., totalRow ]
-// -----------------------------------------------------------------------------
+function parseAsDate(value) {
+  if (value instanceof Date && !isNaN(value)) return value;
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const ms = value * 86400000; // days -> ms
+    const d = new Date(excelEpoch.getTime() + ms);
+    return isNaN(d) ? null : d;
+  }
+
+  if (typeof value === 'string') {
+    const d = dayjs(value);
+    if (d.isValid()) return d.toDate();
+
+    const nd = new Date(value);
+    return isNaN(nd) ? null : nd;
+  }
+
+  return null;
+}
+
 function createPivot(data, rowKey, colKey, valueKey) {
   const rowMap = {};
   const colSet = new Set();
@@ -40,17 +58,14 @@ function createPivot(data, rowKey, colKey, valueKey) {
     colSet.add(c);
   }
 
-  // sort columns numeric-aware then string
+  // Sort columns numeric-aware
   const columns = Array.from(colSet).sort((a, b) => {
     const na = Number(a);
     const nb = Number(b);
-    const aNaN = Number.isNaN(na);
-    const bNaN = Number.isNaN(nb);
-    if (!aNaN && !bNaN) return na - nb;
+    if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
     return String(a).localeCompare(String(b));
   });
 
-  // assemble rows
   const outRows = Object.entries(rowMap).map(([rowLabel, values]) => {
     const rec = { rowLabel };
     for (const col of columns) {
@@ -59,89 +74,94 @@ function createPivot(data, rowKey, colKey, valueKey) {
     return rec;
   });
 
-  // add totals
-  return addTotals(outRows, columns);
+  return addTotalsAndCounts(outRows, columns);
 }
 
-function addTotals(rows, columns) {
+/**
+ * Adds row totals, column totals, and a count column.
+ */
+function addTotalsAndCounts(rows, columns) {
   const colTotals = new Array(columns.length).fill(0);
+
   const rowsWithTotals = rows.map((r) => {
     let sum = 0;
+    let nonZeroCount = 0;
+
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i];
       const v = Number(r[col]) || 0;
       sum += v;
       colTotals[i] += v;
+      if (v !== 0) nonZeroCount += 1;
     }
-    return { ...r, [TOTAL_LABEL]: sum };
+
+    return { ...r, [TOTAL_LABEL]: sum, [COUNT_LABEL]: nonZeroCount };
   });
 
-  const grandTotal = colTotals.reduce((a, b) => a + b, 0);
+  // Column totals
   const totalRow = { rowLabel: TOTAL_LABEL };
+  let totalRowNonZeroCount = 0;
   for (let i = 0; i < columns.length; i++) {
-    totalRow[columns[i]] = colTotals[i];
+    const colTotal = colTotals[i];
+    totalRow[columns[i]] = colTotal;
+    if (colTotal !== 0) totalRowNonZeroCount += 1;
   }
-  totalRow[TOTAL_LABEL] = grandTotal;
 
-  const columnsPlus = [...columns, TOTAL_LABEL];
-  const allRows = [...rowsWithTotals, totalRow];
-  return { columns: columnsPlus, rows: allRows };
+  const grandTotal = colTotals.reduce((a, b) => a + b, 0);
+
+  // Sum of all row counts
+  const units = rowsWithTotals.reduce((sum, r) => sum + (r[COUNT_LABEL] || 0), 0);
+
+  totalRow[TOTAL_LABEL] = grandTotal;
+  totalRow[COUNT_LABEL] = units;
+
+  return {
+    columns: [...columns, TOTAL_LABEL, COUNT_LABEL],
+    rows: [...rowsWithTotals, totalRow],
+    grandTotal,
+    units,
+    totalRowNonZeroCount,
+  };
 }
 
-// -----------------------------------------------------------------------------
-// Virtualized pivot grid using react-window
-// -----------------------------------------------------------------------------
 function VirtualPivotGrid({
   pivot,
-  height = 600,
+  height = 1000,
   cellWidth = 80,
   headerHeight = 32,
   rowHeight = 28,
 }) {
   const { columns, rows } = pivot;
-  const columnCount = columns.length + 1; // +1 for row label col
-  const rowCount = rows.length + 1;       // +1 for header row
 
-  // total rendered grid height uses header rowHeight for rowIndex 0
-  const getRowHeight = (index) => (index === 0 ? headerHeight : rowHeight);
-
-  // react-window FixedSizeGrid wants constant rowHeight; to get different header height,
-  // we’ll just use the *larger* of the two and visually center. Simpler & fast.
-  // If you want true variable size grid, use VariableSizeGrid. Let's do that:
-  // (Switch to VariableSizeGrid if you really need mixed heights.)
-  //
-  // For now, we’ll just use FixedSizeGrid w/ rowHeight = rowHeight,
-  // and style header w/ lineHeight to look taller if desired.
+  const columnCount = columns.length + 1;
+  const rowCount = rows.length + 1;
 
   const Cell = ({ columnIndex, rowIndex, style }) => {
-    // Derive value
     let content;
     let isHeader = false;
-    let isRowHeader = false;
-    let isColHeader = false;
-    let isTotalCell = false;
+    let isSpecial = false;
 
     if (rowIndex === 0 && columnIndex === 0) {
-      // top-left header cell
-      content = ORDER_FIELD;
+      content = `${ORDER_FIELD}\\${PRODUCT_FIELD}`;
       isHeader = true;
     } else if (rowIndex === 0) {
-      // column headers
       content = columns[columnIndex - 1];
       isHeader = true;
-      isColHeader = true;
+      if (content === TOTAL_LABEL || content === COUNT_LABEL) isSpecial = true;
     } else if (columnIndex === 0) {
-      // row headers
-      content = rows[rowIndex - 1].rowLabel;
+      const rowObj = rows[rowIndex - 1];
+      content = rowObj.rowLabel;
       isHeader = true;
-      isRowHeader = true;
+      if (content === TOTAL_LABEL) isSpecial = true;
     } else {
       const rowObj = rows[rowIndex - 1];
       const colKey = columns[columnIndex - 1];
       const val = rowObj[colKey];
-      content = formatNumberCell(val);
-      if (rowObj.rowLabel === TOTAL_LABEL || colKey === TOTAL_LABEL) {
-        isTotalCell = true;
+      content = colKey === COUNT_LABEL
+        ? (val === 0 ? '' : String(val))
+        : formatNumberCell(val);
+      if (rowObj.rowLabel === TOTAL_LABEL || colKey === TOTAL_LABEL || colKey === COUNT_LABEL) {
+        isSpecial = true;
       }
     }
 
@@ -156,47 +176,25 @@ function VirtualPivotGrid({
       textOverflow: 'ellipsis',
       fontSize: 12,
       lineHeight: `${rowHeight}px`,
+      fontWeight: isHeader ? 'bold' : 'normal',
+      background: isSpecial ? '#fff8e1' : isHeader ? '#f5f5f5' : 'white',
+      textAlign: (!isHeader && content !== '' && !Number.isNaN(Number(String(content).replace(/,/g, ''))))
+        ? 'right'
+        : 'left',
     };
-
-    if (isHeader) {
-      base.fontWeight = 'bold';
-      base.background = '#f5f5f5';
-    }
-    if (isTotalCell) {
-      base.fontWeight = 'bold';
-      base.background = '#fff8e1';
-    }
-    if (isRowHeader && content === TOTAL_LABEL) {
-      base.background = '#fff8e1';
-    }
-    if (isColHeader && content === TOTAL_LABEL) {
-      base.background = '#fff8e1';
-    }
-
-    // align numbers right, labels left
-    const alignRight =
-      !isHeader &&
-      content !== '' &&
-      !Number.isNaN(Number(String(content).replace(/,/g, '')));
-
-    base.textAlign = alignRight ? 'right' : 'left';
 
     return <div style={base}>{content}</div>;
   };
 
-  // width: let grid scroll horizontally if many columns
-  const width = columnCount * cellWidth;
-  // you can cap width to container width: wrap in Box w/ overflow:auto if desired
-
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', overflow: 'auto', width: '100%' }}>
+    <Box sx={{ border: '1px solid', borderColor: 'divider', overflow: 'auto' }}>
       <Grid
         columnCount={columnCount}
         columnWidth={cellWidth}
         height={height}
         rowCount={rowCount}
         rowHeight={rowHeight}
-        width={width < 1200 ? width : 1200} // show scrollbar if wider than 800px; tweak as needed
+        width={1100}
       >
         {Cell}
       </Grid>
@@ -204,7 +202,6 @@ function VirtualPivotGrid({
   );
 }
 
-// number formatting: blank for 0 to reduce noise, comma for >999
 function formatNumberCell(val) {
   const n = Number(val);
   if (!Number.isFinite(n) || n === 0) return '';
@@ -219,11 +216,13 @@ export default function Orders({
   accept = '.xls,.xlsx,.xlsm,.csv',
 }) {
   const fileInputRef = useRef(null);
+
   const [fileName, setFileName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [excelData, setExcelData] = useState(null);
   const [activeSheet, setActiveSheet] = useState('');
+  const [selectedDate, setSelectedDate] = useState(null);
 
   const handleFileChange = async (event) => {
     setErrorMsg('');
@@ -235,8 +234,9 @@ export default function Orders({
       setLoading(true);
       const parsed = await parseExcelFile(file);
       setExcelData(parsed);
-      const first = parsed.sheetNames[0];
-      setActiveSheet(first);
+      const targetSheet =
+        parsed.sheetNames.find((name) => name.includes('出貨明細')) ?? parsed.sheetNames[0];
+      setActiveSheet(targetSheet);
     } catch (err) {
       console.error('Excel parse error:', err);
       setErrorMsg('Failed to read file. Is it a valid Excel/CSV?');
@@ -246,18 +246,39 @@ export default function Orders({
     }
   };
 
-  // current sheet
   const sheetRows = excelData?.sheets?.[activeSheet]?.rows ?? [];
   const sheetHeaders = sheetRows[0] || [];
-  const dataRows = sheetRows.slice(1);
 
-  // locate required columns
   const idxOrder = sheetHeaders.indexOf(ORDER_FIELD);
   const idxProduct = sheetHeaders.indexOf(PRODUCT_FIELD);
   const idxQty = sheetHeaders.indexOf(QTY_FIELD);
+  const idxDate = sheetHeaders.indexOf('出貨日期');
+
   const hasNeededCols = idxOrder >= 0 && idxProduct >= 0 && idxQty >= 0;
 
-  // map to objects
+  const uniqueDates = useMemo(() => {
+    if (idxDate < 0 || sheetRows.length <= 1) return [];
+    const s = new Set();
+    for (let i = 1; i < sheetRows.length; i++) {
+      const d = parseAsDate(sheetRows[i][idxDate]);
+      if (d) s.add(dayjs(d).format('YYYY-MM-DD'));
+    }
+    return Array.from(s).sort();
+  }, [sheetRows, idxDate]);
+
+  const filteredRows = useMemo(() => {
+    if (sheetRows.length <= 1) return sheetRows;
+    if (idxDate < 0) return sheetRows;
+    if (!selectedDate) return sheetRows;
+    return sheetRows.filter((row, i) => {
+      if (i === 0) return true;
+      const d = parseAsDate(row[idxDate]);
+      return d && dayjs(d).isSame(selectedDate, 'day');
+    });
+  }, [sheetRows, idxDate, selectedDate]);
+
+  const dataRows = filteredRows.slice(1);
+
   const dataObjects = useMemo(() => {
     if (!hasNeededCols) return [];
     return dataRows.map((r) => ({
@@ -267,16 +288,60 @@ export default function Orders({
     }));
   }, [dataRows, idxOrder, idxProduct, idxQty, hasNeededCols]);
 
-  // build pivot
   const pivotData = useMemo(() => {
     if (!dataObjects.length) return null;
     return createPivot(dataObjects, ORDER_FIELD, PRODUCT_FIELD, QTY_FIELD);
   }, [dataObjects]);
 
-  // Display count from first sheet (matches your earlier UI)
-  const firstSheetName = excelData?.sheetNames?.[0] ?? '';
-  const firstSheetRows = firstSheetName ? excelData?.sheets[firstSheetName]?.rows || [] : [];
-  const firstSheetRowCount = Math.max(0, firstSheetRows.length - 1);
+  const productList = excelData?.sheetNames?.find((name) => name.includes('品號表'));
+  const productListRows = productList ? excelData?.sheets[productList]?.rows || [] : [];
+  const productListRowCount = Math.max(0, productListRows.length - 1);
+  const filteredCount = Math.max(0, filteredRows.length - 1);
+
+  const uniqueOrderCount = useMemo(() => {
+    if (!hasNeededCols || filteredRows.length <= 1) return 0;
+    const set = new Set();
+    for (let i = 1; i < filteredRows.length; i++) {
+      set.add(filteredRows[i][idxOrder]);
+    }
+    return set.size;
+  }, [filteredRows, idxOrder, hasNeededCols]);
+
+  const monthlyAverages = useMemo(() => {
+    if (!hasNeededCols || filteredRows.length <= 1 || idxDate < 0) return [];
+
+    // Step 1: Collect unique 單號 per day
+    const dailyOrders = {}; // { "2025-07-01": Set(單號1, 單號2, ...) }
+
+    for (let i = 1; i < filteredRows.length; i++) {
+      const row = filteredRows[i];
+      const date = parseAsDate(row[idxDate]);
+      if (!date) continue;
+
+      const dayKey = dayjs(date).format('YYYY-MM-DD');
+      if (!dailyOrders[dayKey]) dailyOrders[dayKey] = new Set();
+      dailyOrders[dayKey].add(row[idxOrder]);
+    }
+
+    // Step 2: Aggregate daily counts into monthly totals
+    const monthlyTotals = {};
+    const monthlyDayCounts = {};
+
+    Object.keys(dailyOrders).forEach((dayKey) => {
+      const monthKey = dayKey.slice(0, 7); // YYYY-MM
+      const dayCount = dailyOrders[dayKey].size;
+
+      monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + dayCount;
+      monthlyDayCounts[monthKey] = (monthlyDayCounts[monthKey] || 0) + 1;
+    });
+
+    // Step 3: Compute average 單 per day for each month
+    return Object.keys(monthlyTotals).sort().map((month) => ({
+      month,
+      avg: (monthlyTotals[month] / monthlyDayCounts[month]).toFixed(2), // 2 decimal places
+    }));
+  }, [filteredRows, idxDate, idxOrder, hasNeededCols]);
+
 
   return (
     <Stack spacing={3}>
@@ -307,7 +372,7 @@ export default function Orders({
 
       {excelData && (
         <Typography variant="body1">
-          結果筆數 ("{firstSheetName}"): {firstSheetRowCount}
+          結果筆數 ("{productList}"): {productListRowCount}
         </Typography>
       )}
 
@@ -319,6 +384,7 @@ export default function Orders({
             size="small"
             value={activeSheet}
             onChange={(e) => setActiveSheet(e.target.value)}
+            sx={{ minWidth: 240 }}
           >
             {excelData.sheetNames.map((name) => (
               <MenuItem key={name} value={name}>
@@ -329,7 +395,47 @@ export default function Orders({
         </Box>
       )}
 
-      {/* Missing required columns */}
+      {/* Date Picker */}
+      {sheetRows && sheetRows.length > 1 && (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="h6">日期:</Typography>
+            <Select
+              size="small"
+              value={selectedDate ? dayjs(selectedDate).format('YYYY-MM-DD') : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSelectedDate(v === '' ? null : dayjs(v));
+              }}
+              displayEmpty
+              sx={{ minWidth: 160 }}
+            >
+              <MenuItem value="">
+                <em>全部日期 All Dates</em>
+              </MenuItem>
+              {uniqueDates.map((d) => (
+                <MenuItem key={d} value={d}>
+                  {d}
+                </MenuItem>
+              ))}
+            </Select>
+            <DatePicker
+              label="選擇日期"
+              value={selectedDate}
+              onChange={(newValue) => setSelectedDate(newValue)}
+              format="YYYY-MM-DD"
+              slotProps={{ textField: { size: 'small' } }}
+            />
+          </Stack>
+        </LocalizationProvider>
+      )}
+
+      {sheetRows.length > 1 && (
+        <Typography variant="body2" color="text.secondary">
+          篩選後筆數: {filteredCount}
+        </Typography>
+      )}
+
       {excelData && !hasNeededCols && (
         <Alert severity="warning" sx={{ maxWidth: 600 }}>
           找不到必要欄位：需要「{ORDER_FIELD}」、「{PRODUCT_FIELD}」、「{QTY_FIELD}」。
@@ -337,15 +443,38 @@ export default function Orders({
         </Alert>
       )}
 
-      {/* Pivot */}
       {pivotData && (
-        <VirtualPivotGrid
-          pivot={pivotData}
-          height={600}
-          cellWidth={80}
-          headerHeight={32}
-          rowHeight={28}
-        />
+        <>
+          <Typography variant="body2">出貨總量: {pivotData.grandTotal.toLocaleString()}</Typography>
+          <Typography variant="body2">品項總數合計: {pivotData.units.toLocaleString()}</Typography>
+          <Typography variant="body2">篩選後單號數: {uniqueOrderCount}</Typography>
+          
+          {monthlyAverages.length > 0 && (
+            <Box>
+              <Typography variant="h6">每月平均單數 (每日平均)</Typography>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {monthlyAverages.map((m) => (
+                  <Typography key={m.month} variant="body2">
+                    {m.month}: {m.avg} 單/天
+                  </Typography>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          <VirtualPivotGrid
+            pivot={pivotData}
+            height={600}
+            cellWidth={80}
+            rowHeight={28}
+          />
+        </>
+      )}
+
+      {!loading && excelData && !pivotData && (
+        <Typography variant="body2" color="text.secondary">
+          沒有符合日期的資料。
+        </Typography>
       )}
     </Stack>
   );
