@@ -1,41 +1,76 @@
-# TPH Calculator in MFC
+# TPH Calculator for MFC
 Used in TAC Dynamics 泰科動力
 ## Overview
 This tool is used to calculate efficiency based on warehouse configuration and robot speed. It will also reccommend the most cost effective option for optimal warehouse Throughput per Hour (TPH).
 
 ## Features
-- Customisable Storage Setting (Length *Breadth *Height)
-- Customisable port location (Current Limitation: available only on x=0 axis)
+- Customisable Layout (Length *Breadth *Height)
+- Customisable port location (Current Limitation: available only on x=0 and y=0 axis)
 - Customisable Container(s) Location with ability to generate random storage
-- Customisable Robot configuration along with starting point
-- Customisable Picking List plus randomness
+- Customisable Robot configuration and its starting point
+- Customise picking sequence with ability to randomise and sorted (Best Case)
+- Ability to Smart Relocate blocking containers
+    - Relocation Method:
+        - Look through subsequent picking and choose stack with minimal blocking
 
 ## Calculation Model
 The tool uses a **simplified single-robot time model**, broken into the following components:
 
 | Step      | Description                                                           |
 |-----------|-----------------------------------------------------------------------|
-| **M1**    | Time spent moving from  to blocking, if needed   |
-| **R**     | Time spent relocating blocking container(s), if needed                |
-| **M2**    | Time spent moving from robot position to intended container      |
-| **Outbound** | Time spent moving the intended container to the port       |
-| **Ws**    | Time spent at the port                                         |
-| **Inbound** | Time spent returning to original container's position          |
+| **M1**    | Average Time spent moving from  to blocking, if needed   |
+| **R**     | Average Time spent relocating blocking container(s), if needed                |
+| **M2**    | Average Time spent moving from robot's position to intended container      |
+| **Outbound** | Average Time spent moving the intended container to nearest port       |
+| **Ws**    | Average Time an operator spends at a port                                         |
+| **Inbound** | Average Time spent returning to  container's original position          |
 
 TPH for 1 robot is calculated through the formula:
-$$\text{TPH} \approx \dfrac{3600}{\text{(Total relocate time} + \text{Total time)/pick count + port time}} \times \text{port count (if required)}$$
+$$\text{TPH} \approx \dfrac{3600}{\text{(Total Relocate Time} + \text{Total Useful Time)/pick count + port time}} \times \text{port multiplier (if required)}$$
 - **3600**: 1 hour in seconds
 - **Total relocate time:** total time spent on relocating for the system. This time includes M1 (to blocking containers) and R.
-- **Total time:** total base time spent on actual picks *excluding* relocate phase. This time includes M2 Outbound and Inbound.
+- **Total time:** total base time spent on actual picks *excluding* relocating phase. This time includes M2,Outbound and Inbound.
 - **pick count:** number of picks done.
 - **port time:** time spent on port for each pick.
 
-///Need clarification
-- **port count:** exists only if port time > **port count -1 (need cfm)** * average time spent on M1+ R+ M2+ Outbound+ Inbound, else ```port count = 1```. If time spent on WS is too long, robot has enough time to move another container, thus increasing TPH by no. of ports.
+- **port multiplier:** exists only if ```port time > T``` where T = [(no. of port - 1) * average time spent on M1+ R+ M2+ Outbound+ Inbound]. 
 
-{Math.ceil((((relocate_time + time / 2) / pick_number) - inboundclash_t) / work_t) * ws_number}
+| No. of Port(s) | Port Time  | Port Multiplier         |
+|----------------|------------|--------------------|
+| 1              | -          |       1            |
+| 2              | ≥1T       |       2            |
+| 3              | ≥2T       |       3            |
+| 4              | ≥3T       |       4            |
+| ...            | ...        |      ...           |
 
-$$\text{Reccomended No. of Robots = }$$
+This means the robot has enough time to move another container, thus increasing TPH by its multiplier.
 
-This model calculates the average time spent on 1 pick and estimates TPH and recommended number of robots.
+--- 
+$$
+\text{Recommended No. of Robot(s)=}\left\lceil
+\frac{
+\left( {\text{Total Relocate Time} + {\text{Total Useful Time}}} \right)/\text{pick number}
+}{
+\text{work time+\text{inbound clash time}}
+}
+\right\rceil
+\times \text{no. of port(s)}
+$$
 
+Estimating new TPH:
+$$
+\text{New TPH} \approx
+\left[
+\frac{3600 - (\text{Relocate Time} + \text{Outbound Time} + \text{Work Time})}
+{\text{Work Time} + \text{Inbound Clash Time}} + 1
+\right]
+\times \text{No. of Port(s)}
+$$
+
+
+<pre> |M1|R|M2|Out|Ws| 
+                |clash_in|Ws| 
+                            |clash_in|Ws|...
+                                         ...|clash_in|Ws|
+⟨───────────────────────── 1h ───────────────────────────⟩
+                                         </pre>

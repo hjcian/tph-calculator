@@ -1,20 +1,25 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box,Switch } from '@mui/material';
+import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Switch } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+
+//Functions
 import { calculate_time, random_storage } from './Calculate_time.jsx';
 import { display_result } from './Display_result.jsx'
-import CustomizedDialogs from '../../Components/Dialog.jsx';
+
+//Reusable components
+import {AntSwitch} from '../../Components/AntSwitch.jsx';
+import CustomizedDialogs from '../../Components/Dialog.jsx'; // not reusable yet!
 import InputRowsSection from '../../Components/Input_Rows.jsx';
 import StorageTable from '../../Components/table.jsx';
-import StorageScene from '../../Components/3d.jsx';
-import Layout from '../../Layout.jsx';
+import StorageScene from '../../Components/3d.jsx'; // not reusable yet!
+
+//Icons
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import SmartToySharpIcon from '@mui/icons-material/SmartToySharp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-
 
 export default function WarehouseCalculation() {
   const [result, setResult] = useState(null);
@@ -29,9 +34,11 @@ export default function WarehouseCalculation() {
   const [storageRows, setStorageRows] = useState([{ x: '', y: '', z: '' }]);
   const [pickingRows, setPickingRows] = useState([{ x: '', y: '', z: '' }]);
   const [pickingList, setPickingList] = useState([]);
+
   const [length, setLength] = useState(5);
   const [breadth, setBreadth] = useState(5);
   const [height, setHeight] = useState(5);
+  
   const [storage, setStorage] = useState([]);
   const [port, setPort] = useState([{ x: 1, y: 0, z: 0 }]);
 
@@ -39,8 +46,8 @@ export default function WarehouseCalculation() {
   const [robotPosition, setRobotPosition] = useState([{ x: 0, y: 0, z: 1 }]);
 
   const [isClearingAll, setIsClearingAll] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [smartRelocation,setSmartRelocation]=useState(true);
+  const [submit, setSubmit] = useState(false);
+  const [smartRelocation, setSmartRelocation] = useState(true);
   ///
   const [move_t_1, setMove_t_1] = useState(4);
   const [move_t_long, setMove_t_long] = useState(0.6);
@@ -48,6 +55,7 @@ export default function WarehouseCalculation() {
   const [climb_t, setClimb_t] = useState(2);
   const [turn_t, setTurn_t] = useState(3.5);
   const [work_t, setWork_t] = useState(30);
+
   const [full_percentage, setFull_Percentage] = useState(90);
 
   let totalTime = 0;
@@ -85,11 +93,11 @@ export default function WarehouseCalculation() {
     if (port.length === 0) {
       setRobotPosition([{ x: NaN, y: NaN, z: NaN }]);
     } else {
-      const ws = port[0];
+      const p = port[0];
       setRobotPosition([{
-        x: ws.x,
-        y: ws.y,
-        z: ws.z + 1
+        x: p.x,
+        y: p.y,
+        z: p.z + 1
       }])
     }
   }, [port]);
@@ -98,6 +106,10 @@ export default function WarehouseCalculation() {
     setStorage([]);
     setPort([{ x: 1, y: 0, z: 0 }]);
   }, [length, breadth, height]);
+
+  useEffect(() => {
+    setSubmit(false);
+  }, [length, breadth, height, storage, port, robotPosition, pickingList]);
 
   const handleDeleteItem = (indexToDelete, setFunction) => {
     setFunction((prev) => prev.filter((_, index) => index !== indexToDelete));
@@ -155,21 +167,15 @@ export default function WarehouseCalculation() {
   };
 
   const handleFinalSubmit = async () => {
-    let n = 1;
+    setSubmit(true);
     if (validateInputs()) {
       // proceed with computation
       console.log("All valid, proceeding...");
-      for (let p = 0; p < n; p++) {
-        console.log(`%c[DEBUG] %cIT RAN HERE ${p} times`, 'color: gray;', 'color: red; font-weight: bold;');
-        //newStorage = random_storage(length, breadth, height);
-        const [Time, RelocateTime] = calculate(storage);
-        //setStorage(newStorage);
-        if (p % 100 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0)); // let the UI update
-        }
-      }
-    } else {
-      console.log("Errors found.");
+      //newStorage = random_storage(length, breadth, height);
+      const [Time, RelocateTime] = calculate(storage);
+      //setStorage(newStorage);
+      await new Promise(resolve => setTimeout(resolve, 0)); // let the UI update
+
     }
   };
 
@@ -189,8 +195,8 @@ export default function WarehouseCalculation() {
     setPickingList(storage);
   };
 
-  const handle_relocation_method = () =>{
-    if(smartRelocation==false){
+  const handle_relocation_method = () => {
+    if (smartRelocation == false) {
       setSmartRelocation(true);
     } else {
       setSmartRelocation(false);
@@ -217,7 +223,7 @@ export default function WarehouseCalculation() {
 
   const handle_generate_random_storage = () => {
     if (validateInputs()) {
-      if (storage.length > 0 || (robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)))) {
+      if (storage.length > 0 || (robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)))) {
         const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${((pickingList.length > 0 || robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)))) ? "\nThis will also affect the following:" : ''}${pickingList.length > 0 ? `\n- Clear existing picking list.` : ''}${robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)) ? `\n- Reset Robot position.` : ''}\n\nThis action cannot be reversed.`);
 
         let newStorage = random_storage(length, breadth, height, full_percentage);
@@ -286,7 +292,7 @@ export default function WarehouseCalculation() {
     let relocate_time = 0;
 
     if (port.length === 0) {
-      scrollAndNotify(portRef, "No port 無工作站");
+      scrollAndNotify(portRef, "No port 無工作站口");
     } else if (storage.length === 0) {
       scrollAndNotify(container_LocationRef, "No Storage 無庫存");
     } else if (pickingList.length === 0) {
@@ -299,10 +305,22 @@ export default function WarehouseCalculation() {
     let newPickingList = pickingList.map(item => ({ ...item }));
     let newRobotPosition = robotPosition[0] || {};;
     console.log("PICKINGLIST Will update", [...newPickingList.map(item => ({ ...item }))]);
+    if (port.length === 0) {
+      return;
+    }
+
+    const movementTimes = {
+      move_t_1,
+      move_t_long,
+      trf_t,
+      climb_t,
+      turn_t,
+    };
+
     while (newPickingList.length > 0) {
       const containers = newPickingList[0];
       try {
-        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, port, newRobotPosition, smartRelocation);
+        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, movementTimes, all_storage, newStorage, newPickingList, port, newRobotPosition, smartRelocation);
         time += deltaTime;
         relocate_time += deltaRelocate;
         newStorage = newestStorage;
@@ -316,19 +334,19 @@ export default function WarehouseCalculation() {
       }
     }
 
-    setIsUpdating(true);
     //setStorage(newStorage);
     //setPickingList(newPickingList);
 
     if (pickingList.length > 0) {
       const inboundclash_t = move_t_1 + trf_t + climb_t + turn_t + climb_t + move_t_1;
-      console.log(inboundclash_t, time / pickingList.length, relocate_time / pickingList.length);
       setResult(
         <Grid ref={resultRef}>
           {display_result(work_t, inboundclash_t, time, relocate_time, pickingList.length, port.length)}
         </Grid>
       );
     }
+
+
     return ([time, relocate_time]);
   }
 
@@ -414,7 +432,9 @@ export default function WarehouseCalculation() {
             </Accordion>
 
             <Accordion sx={{
-              border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.work_t || port.length === 0) ? 'red' : '#ccc',
+              border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: submit
+                ? ((fieldErrors.work_t || port.length === 0) ? 'red' : '#ccc')
+                : '#ccc',
               '&:before': {
                 display: 'none',
               },
@@ -472,6 +492,7 @@ export default function WarehouseCalculation() {
             </Accordion>
             <Accordion sx={{
               border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              borderColor: submit && (!!(fieldErrors.full_percentage || storage.length == 0)) ? 'red' : '#ccc',
               '&:before': {
                 display: 'none',
               },
@@ -526,7 +547,7 @@ export default function WarehouseCalculation() {
                           lineHeight: 1.2,
                         }}
                       >
-                        {storage.length > 0 ? 'Re-g' : 'G'}enerate Random Storage <br />隨機建立庫存
+                        {storage.length > 0 ? 'Re-g' : 'G'}enerate Random Storage <br />{storage.length > 0 ? '重新' : ''}隨機建立庫存
                       </Button>
                     </Box>
                   </Stack>
@@ -659,7 +680,10 @@ export default function WarehouseCalculation() {
             </Accordion>
 
             <Accordion sx={{
-              border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              border: '1px solid ', boxShadow: 'none', borderRadius: 2,
+              borderColor: submit
+                ? ((pickingList.length === 0) ? 'red' : '#ccc')
+                : '#ccc',
               '&:before': {
                 display: 'none',
               },
@@ -692,31 +716,47 @@ export default function WarehouseCalculation() {
                     </Typography>
                     <Typography marginRight={1} color={'gray'}>Container Count 目標容器數量: {pickingList.length}</Typography>
                   </Stack>
-                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }} alignItems={'center'}>
+                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }} alignItems={'center'} >
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
                       sx={{
                         backgroundColor: 'orange',
-                        fontSize: '0.75rem', // scale down text
-                        padding: '4px 8px',  // scale down padding
-                        minWidth: 'auto',    // prevent fixed size
-                      }}>Pick All 全選 (Best Case)</Button>}
-                      
-                    {pickingList.length>0 && <Stack alignContent={'center'} direction={'row '}><Switch checked={smartRelocation} onClick={(e) => { e.stopPropagation(); handle_relocation_method(); }} ></Switch>
-                    <Typography>Smart Relocation</Typography>
-                    </Stack>}
+                      }}>Pick All 全選</Button>}
+
+                    {pickingList.length > 0 &&
+                      <Stack alignItems={'center'} direction={'column'} sx={{
+                        backgroundColor: '#FAFAFA', padding: 1, borderRadius: 2, border: "1px solid #ccc"
+                      }}
+                        onClick={(e) => { e.stopPropagation(); handle_relocation_method(); }}
+                      >
+                        <Typography sx={{
+                          fontSize: '0.75rem',
+                          minWidth: 'auto'
+                        }}>SMART RELOCATE</Typography>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Typography sx={{
+                            fontSize: '0.75rem',
+                            minWidth: 'auto'
+                          }}>Off</Typography>
+                          <AntSwitch checked={smartRelocation} />
+                          <Typography sx={{
+                            fontSize: '0.75rem',
+                            minWidth: 'auto'
+                          }}>On</Typography>
+                        </Stack>
+                      </Stack>}
                     {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_random_calculate(); }} disableElevation
                       sx={{
                         fontSize: '0.75rem', // scale down text
                         padding: '4px 8px',  // scale down padding
                         minWidth: 'auto',    // prevent fixed size
-                      }}>Random Shuffle <br /> Picking List</Button>}
+                      }}>Random Picking<br /> 隨機挑選</Button>}
                     {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_sort_calculate(); }} disableElevation
                       sx={{
                         backgroundColor: 'green',
                         fontSize: '0.75rem', // scale down text
                         padding: '4px 8px',  // scale down padding
                         minWidth: 'auto',    // prevent fixed size
-                      }}>Sort Picking List <br /> (Best Case)</Button>}
+                      }}>Best Pick<br />最優挑選</Button>}
                   </Stack>
                 </Stack>
               </AccordionSummary>

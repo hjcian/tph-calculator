@@ -124,7 +124,7 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
                 const maxX = Math.max(...all_storage.map(item => item.x));
                 const basePos = [(maxX - item.x) * 1.7, item.y * 1.7, item.z * 1.2];
                 return (
-                    <mesh key={`ws-${index}`} position={[basePos[0], basePos[1], basePos[2] + 0.2]}>
+                    <mesh key={`p-${index}`} position={[basePos[0], basePos[1], basePos[2] + 0.2]}>
                         <boxGeometry args={[1.45, 1.45, 1.2]} />
                         <meshStandardMaterial color="black" />
                         <Edges scale={1.01} color="white" threshold={15} />
