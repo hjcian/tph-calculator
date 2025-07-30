@@ -1,20 +1,26 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box,Switch } from '@mui/material';
+import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Backdrop } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import { LoadingCircle } from '../../components/Loading.jsx';
+
+//Functions
 import { calculate_time, random_storage } from './Calculate_time.jsx';
 import { display_result } from './Display_result.jsx'
-import CustomizedDialogs from '../../Components/Dialog.jsx';
-import InputRowsSection from '../../Components/Input_Rows.jsx';
-import StorageTable from '../../Components/table.jsx';
-import StorageScene from '../../Components/3d.jsx';
-import Layout from '../../Layout.jsx';
+
+//Reusable components
+import { AntSwitch } from '../../components/AntSwitch.jsx';
+import CustomizedDialogs from '../../components/Dialog.jsx'; // not reusable yet!
+import InputRowsSection from '../../components/Input_Rows.jsx';
+import StorageTable from '../../components/table.jsx';
+import StorageScene from '../../components/3d.jsx'; // not reusable yet!
+
+//Icons
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import SmartToySharpIcon from '@mui/icons-material/SmartToySharp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-
 
 export default function WarehouseCalculation() {
   const [result, setResult] = useState(null);
@@ -25,33 +31,50 @@ export default function WarehouseCalculation() {
   const container_LocationRef = useRef(null);
   const pickingListRef = useRef(null);
   const portRef = useRef(null);
-  const [portRows, setportRows] = useState([{ x: '', y: '', z: '' }]);
-  const [storageRows, setStorageRows] = useState([{ x: '', y: '', z: '' }]);
-  const [pickingRows, setPickingRows] = useState([{ x: '', y: '', z: '' }]);
+  const [portRows, setportRows] = useState({});
+  const [storageRows, setStorageRows] = useState({});
+  const [pickingRows, setPickingRows] = useState({});
   const [pickingList, setPickingList] = useState([]);
-  const [length, setLength] = useState(5);
-  const [breadth, setBreadth] = useState(5);
-  const [height, setHeight] = useState(5);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // const [length, setLength] = useState(5);
+  // const [breadth, setBreadth] = useState(5);
+  // const [height, setHeight] = useState(5);
+
   const [storage, setStorage] = useState([]);
   const [port, setPort] = useState([{ x: 1, y: 0, z: 0 }]);
 
-  const [robotRows, setRobotRows] = useState([{ x: '', y: '', z: '' }]);
+  const [robotRows, setRobotRows] = useState({});
   const [robotPosition, setRobotPosition] = useState([{ x: 0, y: 0, z: 1 }]);
 
   const [isClearingAll, setIsClearingAll] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [smartRelocation,setSmartRelocation]=useState(true);
+  const [submit, setSubmit] = useState(false);
+  const [smartRelocation, setSmartRelocation] = useState(true);
   ///
-  const [move_t_1, setMove_t_1] = useState(4);
-  const [move_t_long, setMove_t_long] = useState(0.6);
-  const [trf_t, setTrf_t] = useState(2);
-  const [climb_t, setClimb_t] = useState(2);
-  const [turn_t, setTurn_t] = useState(3.5);
-  const [work_t, setWork_t] = useState(30);
-  const [full_percentage, setFull_Percentage] = useState(90);
+  // const [move_t_1, setMove_t_1] = useState(4);
+  // const [move_t_long, setMove_t_long] = useState(0.6);
+  // const [trf_t, setTrf_t] = useState(2);
+  // const [climb_t, setClimb_t] = useState(2);
+  // const [turn_t, setTurn_t] = useState(3.5);
+  // const [work_t, setWork_t] = useState(30);
 
-  let totalTime = 0;
-  let totalRelocate = 0;
+  //const [full_percentage, setFull_Percentage] = useState(90);
+
+  const [settings, setSettings] = useState({
+    move_t_1: 4,
+    move_t_long: 0.6,
+    trf_t: 2,
+    climb_t: 2,
+    turn_t: 3.5,
+    work_t: 30,
+    length: 5,
+    breadth: 5,
+    height: 5,
+    full_percentage: 90,
+  });
+
+
 
   const [fieldErrors, setFieldErrors] = useState({
     length: '',
@@ -85,11 +108,11 @@ export default function WarehouseCalculation() {
     if (port.length === 0) {
       setRobotPosition([{ x: NaN, y: NaN, z: NaN }]);
     } else {
-      const ws = port[0];
+      const p = port[0];
       setRobotPosition([{
-        x: ws.x,
-        y: ws.y,
-        z: ws.z + 1
+        x: p.x,
+        y: p.y,
+        z: p.z + 1
       }])
     }
   }, [port]);
@@ -97,40 +120,54 @@ export default function WarehouseCalculation() {
   useEffect(() => {
     setStorage([]);
     setPort([{ x: 1, y: 0, z: 0 }]);
-  }, [length, breadth, height]);
+  }, [settings.length, settings.breadth, settings.height]);
+
+  useEffect(() => {
+    setSubmit(false);
+  }, [settings.length, settings.breadth, settings.height, storage, port, robotPosition, pickingList]);
 
   const handleDeleteItem = (indexToDelete, setFunction) => {
     setFunction((prev) => prev.filter((_, index) => index !== indexToDelete));
   };
 
+  // const handleDimensionChange = (field, value) => {
+  //   const numVal = parseInt(value);
+  //   const floatVal = parseFloat(value);
+  //   // Update value
+  //   if (field === 'length') setLength(numVal);
+  //   else if (field === 'breadth') setBreadth(numVal);
+  //   else if (field === 'height') setHeight(numVal);
+  //   else if (field === 'move_t_1') setMove_t_1(floatVal);
+  //   else if (field === 'move_t_long') setMove_t_long(floatVal);
+  //   else if (field === 'trf_t') setTrf_t(floatVal);
+  //   else if (field === 'climb_t') setClimb_t(floatVal);
+  //   else if (field === 'turn_t') setTurn_t(floatVal);
+  //   else if (field === 'work_t') setWork_t(floatVal);
+  //   else if (field === 'full_percentage') setFull_Percentage(floatVal);
+  // };
+
   const handleDimensionChange = (field, value) => {
-    const numVal = parseInt(value);
-    const floatVal = parseFloat(value);
-    // Update value
-    if (field === 'length') setLength(numVal);
-    else if (field === 'breadth') setBreadth(numVal);
-    else if (field === 'height') setHeight(numVal);
-    else if (field === 'move_t_1') setMove_t_1(floatVal);
-    else if (field === 'move_t_long') setMove_t_long(floatVal);
-    else if (field === 'trf_t') setTrf_t(floatVal);
-    else if (field === 'climb_t') setClimb_t(floatVal);
-    else if (field === 'turn_t') setTurn_t(floatVal);
-    else if (field === 'work_t') setWork_t(floatVal);
-    else if (field === 'full_percentage') setFull_Percentage(floatVal);
+    const isIntegerField = ['length', 'breadth', 'height'].includes(field);
+    const parsedValue = isIntegerField ? parseInt(value) : parseFloat(value);
+
+    setSettings(prev => ({
+      ...prev,
+      [field]: parsedValue,
+    }));
   };
 
   const validateInputs = () => {
     const newErrors = {};
 
     const fields = {
-      length,
-      breadth,
-      height,
-      trf_t,
-      climb_t,
-      turn_t,
-      work_t,
-      full_percentage
+      length: settings.length,
+      breadth: settings.breadth,
+      height: settings.height,
+      trf_t: settings.trf_t,
+      climb_t: settings.climb_t,
+      turn_t: settings.turn_t,
+      work_t: settings.work_t,
+      full_percentage: settings.full_percentage,
     };
 
     for (const [key, value] of Object.entries(fields)) {
@@ -155,42 +192,40 @@ export default function WarehouseCalculation() {
   };
 
   const handleFinalSubmit = async () => {
-    let n = 1;
+    setSubmit(true);
+
     if (validateInputs()) {
       // proceed with computation
       console.log("All valid, proceeding...");
-      for (let p = 0; p < n; p++) {
-        console.log(`%c[DEBUG] %cIT RAN HERE ${p} times`, 'color: gray;', 'color: red; font-weight: bold;');
-        //newStorage = random_storage(length, breadth, height);
-        const [Time, RelocateTime] = calculate(storage);
-        //setStorage(newStorage);
-        if (p % 100 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0)); // let the UI update
-        }
-      }
-    } else {
-      console.log("Errors found.");
+      setIsLoading(true);
+      //newStorage = random_storage(length, breadth, height);
+      Promise.resolve().then(() => {
+        calculate(storage);
+      });
+      //setStorage(newStorage);
+      await new Promise(resolve => setTimeout(resolve, 0)); // let the UI update
+
     }
   };
 
   const all_storage = useMemo(() => {
     const list = [];
-    for (let x = 1; x <= length; x++) {
-      for (let y = 1; y <= breadth; y++) {
-        for (let z = 1; z <= height; z++) {
+    for (let x = 1; x <= settings.length; x++) {
+      for (let y = 1; y <= settings.breadth; y++) {
+        for (let z = 1; z <= settings.height; z++) {
           list.push({ x, y, z });
         }
       }
     }
     return list;
-  }, [length, breadth, height]);
+  }, [settings.length, settings.breadth, settings.height]);
 
   const handle_calculate_all = () => {
     setPickingList(storage);
   };
 
-  const handle_relocation_method = () =>{
-    if(smartRelocation==false){
+  const handle_relocation_method = () => {
+    if (smartRelocation == false) {
       setSmartRelocation(true);
     } else {
       setSmartRelocation(false);
@@ -217,10 +252,10 @@ export default function WarehouseCalculation() {
 
   const handle_generate_random_storage = () => {
     if (validateInputs()) {
-      if (storage.length > 0 || (robotPosition.some(pos => !(pos.x === 0 && pos.y === 0 && pos.z === 1)))) {
+      if (storage.length > 0 || (robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)))) {
         const confirmClear = window.confirm(`Are you sure you want to re-generate storage?${((pickingList.length > 0 || robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)))) ? "\nThis will also affect the following:" : ''}${pickingList.length > 0 ? `\n- Clear existing picking list.` : ''}${robotPosition.some(pos => !(pos.x === 1 && pos.y === 0 && pos.z === 1)) ? `\n- Reset Robot position.` : ''}\n\nThis action cannot be reversed.`);
 
-        let newStorage = random_storage(length, breadth, height, full_percentage);
+        let newStorage = random_storage(settings.length, settings.breadth, settings.height, settings.full_percentage);
         if (confirmClear) {
           setIsClearingAll(true);
           newStorage = [...newStorage].sort((a, b) => {
@@ -236,7 +271,7 @@ export default function WarehouseCalculation() {
           ]);
         }
       } else {
-        let newStorage = random_storage(length, breadth, height, full_percentage);
+        let newStorage = random_storage(settings.length, settings.breadth, settings.height, settings.full_percentage);
         newStorage = [...newStorage].sort((a, b) => {
           if (a.x !== b.x) return a.x - b.x;
           if (a.y !== b.y) return a.y - b.y;
@@ -282,58 +317,82 @@ export default function WarehouseCalculation() {
   function calculate(calculate_storage = []) {
     console.log("Robot position", robotPosition);
     setResult('');
+
     let time = 0;
     let relocate_time = 0;
 
     if (port.length === 0) {
-      scrollAndNotify(portRef, "No port 無工作站");
+      scrollAndNotify(portRef, "No port 無工作站口");
     } else if (storage.length === 0) {
       scrollAndNotify(container_LocationRef, "No Storage 無庫存");
     } else if (pickingList.length === 0) {
       scrollAndNotify(pickingListRef, "No Picking List 無揀貨單");
-    } else {
-      scrollAndNotify(resultRef, "");
     }
 
     let newStorage = calculate_storage;
     let newPickingList = pickingList.map(item => ({ ...item }));
     let newRobotPosition = robotPosition[0] || {};;
     console.log("PICKINGLIST Will update", [...newPickingList.map(item => ({ ...item }))]);
-    while (newPickingList.length > 0) {
-      const containers = newPickingList[0];
-      try {
-        const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, newStorage, newPickingList, port, newRobotPosition, smartRelocation);
-        time += deltaTime;
-        relocate_time += deltaRelocate;
-        newStorage = newestStorage;
-        newPickingList = newestPickingList;
-        newRobotPosition = newestRobotPosition;
-      } catch (err) {
-        console.error(err.message);
-        setSnackbarMessage(err.message); // show error UI
-        setSnackbarOpen(true);
-        return ('');
-      }
+    if (port.length === 0) {
+      return;
     }
 
-    setIsUpdating(true);
+    const movementTimes = {
+      move_t_1: settings.move_t_1,
+      move_t_long: settings.move_t_long,
+      trf_t: settings.trf_t,
+      climb_t: settings.climb_t,
+      turn_t: settings.turn_t,
+    };
+
+    const runLoop = async () => {
+      while (newPickingList.length > 0) {
+        const containers = newPickingList[0];
+        try {
+          const [newestStorage, newestPickingList, newestRobotPosition, deltaTime, deltaRelocate] = calculate_time(containers.x, containers.y, containers.z, movementTimes, all_storage, newStorage, newPickingList, port, newRobotPosition, smartRelocation);
+          time += deltaTime;
+          relocate_time += deltaRelocate;
+          newStorage = newestStorage;
+          newPickingList = newestPickingList;
+          newRobotPosition = newestRobotPosition;
+          await new Promise((res) => setTimeout(res, 0));
+        } catch (err) {
+          console.error(err.message);
+          setSnackbarMessage(err.message); // show error UI
+          setSnackbarOpen(true);
+          setIsLoading(false);
+          return ('');
+        }
+      }
+      setIsLoading(false);
+
+      if (pickingList.length > 0) {
+        const inboundclash_t = settings.move_t_1 + settings.trf_t + settings.climb_t + settings.turn_t + settings.climb_t + settings.move_t_1;
+
+        setResult(
+          <Grid ref={resultRef}>
+            {display_result(settings.work_t, inboundclash_t, time, relocate_time, pickingList.length, port.length)}
+          </Grid>
+        );
+
+        setTimeout(() => {
+          resultRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100)
+      }
+    };
+
+    runLoop();
     //setStorage(newStorage);
     //setPickingList(newPickingList);
 
-    if (pickingList.length > 0) {
-      const inboundclash_t = move_t_1 + trf_t + climb_t + turn_t + climb_t + move_t_1;
-      console.log(inboundclash_t, time / pickingList.length, relocate_time / pickingList.length);
-      setResult(
-        <Grid ref={resultRef}>
-          {display_result(work_t, inboundclash_t, time, relocate_time, pickingList.length, port.length)}
-        </Grid>
-      );
-    }
     return ([time, relocate_time]);
   }
 
   return (
     <Grid>
+      {isLoading && (
+        <LoadingCircle />
+      )}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
@@ -369,7 +428,7 @@ export default function WarehouseCalculation() {
               >
                 <Stack direction="column" overflow='hidden'>
                   <Typography variant="h6" fontWeight={"bold"}> <Box display="flex" alignItems="center" gap={1}><WarehouseIcon /> Nexano Layout 倉庫佈局</Box></Typography>
-                  <Typography marginRight={1} color={'gray'}>Maximum Location 最大諸位數量: {length * breadth * height}</Typography>
+                  <Typography marginRight={1} color={'gray'}>Maximum Location 最大諸位數量: {settings.length * settings.breadth * settings.height}</Typography>
                 </Stack>
               </AccordionSummary>
               {/* <CustomizedDialogs /> */}
@@ -377,7 +436,7 @@ export default function WarehouseCalculation() {
                 <Stack direction={'column'} gap={1}>
                   <Grid justifyContent={'flex-start'} borderRadius={2} display="flex" gap={1} flexDirection={'row'} alignItems={'center'} backgroundColor={"#FAFAFA"} padding={2}>
                     <Typography flex={1}>Length 長度 (unit):</Typography> <TextField
-                      value={length}
+                      value={settings.length}
                       onChange={(e) => handleDimensionChange('length', e.target.value)}
                       error={!!fieldErrors.length}
                       label={fieldErrors.length}
@@ -388,7 +447,7 @@ export default function WarehouseCalculation() {
 
                     <Typography flex={"1"}>Breadth 寬度 (unit):</Typography>
                     <TextField
-                      value={breadth}
+                      value={settings.breadth}
                       onChange={(e) => handleDimensionChange('breadth', e.target.value)}
                       error={!!fieldErrors.breadth}
                       label={fieldErrors.breadth}
@@ -397,7 +456,7 @@ export default function WarehouseCalculation() {
                       sx={{ flex: 1 }} />
 
                     <Typography flex={"1"}>Height 高度 (unit):</Typography> <TextField
-                      value={height}
+                      value={settings.height}
                       onChange={(e) => handleDimensionChange('height', e.target.value)}
                       error={!!fieldErrors.height}
                       label={fieldErrors.height}
@@ -414,7 +473,9 @@ export default function WarehouseCalculation() {
             </Accordion>
 
             <Accordion sx={{
-              border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: !!(fieldErrors.work_t || port.length === 0) ? 'red' : '#ccc',
+              border: '1px solid', boxShadow: 'none', borderRadius: 2, borderColor: submit
+                ? ((fieldErrors.work_t || port.length === 0) ? 'red' : '#ccc')
+                : '#ccc',
               '&:before': {
                 display: 'none',
               },
@@ -437,7 +498,7 @@ export default function WarehouseCalculation() {
                   <Stack direction="row" alignItems="center" sx={{ marginRight: 2 }}>
                     <Typography marginRight={1}>作業時間 (s):</Typography>
                     <TextField
-                      value={work_t}
+                      value={settings.work_t}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => { handleDimensionChange('work_t', e.target.value) }}
                       error={!!fieldErrors.work_t}
@@ -460,9 +521,9 @@ export default function WarehouseCalculation() {
                     setNewRow={setportRows}
                     list={port}
                     setList={setPort}
-                    length={length}
-                    breadth={breadth}
-                    height={height}
+                    length={settings.length}
+                    breadth={settings.breadth}
+                    height={settings.height}
                     storage={storage}
                     all_storage={all_storage}
                     port={port}
@@ -472,6 +533,7 @@ export default function WarehouseCalculation() {
             </Accordion>
             <Accordion sx={{
               border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              borderColor: submit && (!!(fieldErrors.full_percentage || storage.length == 0)) ? 'red' : '#ccc',
               '&:before': {
                 display: 'none',
               },
@@ -497,7 +559,7 @@ export default function WarehouseCalculation() {
                   <Stack direction="row" gap={3} alignItems="center" ml="auto" sx={{ marginRight: 2 }}>
                     <Stack flex={3} direction={'row'} alignItems={'center'} gap={1}>
                       <TextField
-                        value={full_percentage}
+                        value={settings.full_percentage}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => { handleDimensionChange('full_percentage', e.target.value) }}
                         error={!!fieldErrors.full_percentage}
@@ -524,9 +586,12 @@ export default function WarehouseCalculation() {
                           width: '100%',
                           whiteSpace: 'normal',
                           lineHeight: 1.2,
+                          position: 'relative',
+                          zIndex: 1,
+                          overflow: 'hidden'
                         }}
                       >
-                        {storage.length > 0 ? 'Re-g' : 'G'}enerate Random Storage <br />隨機建立庫存
+                        {storage.length > 0 ? 'Re-g' : 'G'}enerate Random Storage <br />{storage.length > 0 ? '重新' : ''}隨機建立庫存
                       </Button>
                     </Box>
                   </Stack>
@@ -541,9 +606,9 @@ export default function WarehouseCalculation() {
                     setNewRow={setStorageRows}
                     list={storage}
                     setList={setStorage}
-                    length={length}
-                    breadth={breadth}
-                    height={height}
+                    length={settings.length}
+                    breadth={settings.breadth}
+                    height={settings.height}
                     storage={storage}
                     all_storage={all_storage}
                     port={port}
@@ -578,7 +643,7 @@ export default function WarehouseCalculation() {
                     <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
                       <Typography sx={{ width: 140 }}>移動時間 (s)<br />（首格）:</Typography>
                       <TextField
-                        value={move_t_1}
+                        value={settings.move_t_1}
                         onChange={(e) => handleDimensionChange('move_t_1', e.target.value)}
                         error={!!fieldErrors.move_t_1}
                         label={fieldErrors.move_t_1}
@@ -588,7 +653,7 @@ export default function WarehouseCalculation() {
                       />
                       <Typography sx={{ width: 140 }}>移動時間 (s)<br />（每增加一格）:</Typography>
                       <TextField
-                        value={move_t_long}
+                        value={settings.move_t_long}
                         onChange={(e) => handleDimensionChange('move_t_long', e.target.value)}
                         error={!!fieldErrors.move_t_long}
                         label={fieldErrors.move_t_long}
@@ -600,7 +665,7 @@ export default function WarehouseCalculation() {
                     <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
                       <Typography sx={{ width: 140 }}>轉向時間 (s):</Typography>
                       <TextField
-                        value={trf_t}
+                        value={settings.trf_t}
                         onChange={(e) => handleDimensionChange('trf_t', e.target.value)}
                         error={!!fieldErrors.trf_t}
                         label={fieldErrors.trf_t}
@@ -609,7 +674,7 @@ export default function WarehouseCalculation() {
                         sx={{ flex: 1, ml: 'auto', maxWidth: 250 }} />
                       <Typography sx={{ width: 140 }}>爬升時間 (s):</Typography>
                       <TextField
-                        value={climb_t}
+                        value={settings.climb_t}
                         onChange={(e) => handleDimensionChange('climb_t', e.target.value)}
                         error={!!fieldErrors.climb_t}
                         label={fieldErrors.climb_t}
@@ -622,7 +687,7 @@ export default function WarehouseCalculation() {
                     <Stack flexDirection={'row'} alignItems={'center'} gap={2}>
                       <Typography sx={{ width: 140 }}>Pick/Drop 時間 (s):</Typography>
                       <TextField
-                        value={turn_t}
+                        value={settings.turn_t}
                         onChange={(e) => handleDimensionChange('turn_t', e.target.value)}
                         error={!!fieldErrors.turn_t}
                         label={fieldErrors.turn_t}
@@ -644,9 +709,9 @@ export default function WarehouseCalculation() {
                       setNewRow={setRobotRows}
                       list={robotPosition}
                       setList={setRobotPosition}
-                      length={length}
-                      breadth={breadth}
-                      height={height}
+                      length={settings.length}
+                      breadth={settings.breadth}
+                      height={settings.height}
                       storage={storage}
                       all_storage={all_storage}
                       port={port}
@@ -659,7 +724,10 @@ export default function WarehouseCalculation() {
             </Accordion>
 
             <Accordion sx={{
-              border: '1px solid #ccc', boxShadow: 'none', borderRadius: 2,
+              border: '1px solid ', boxShadow: 'none', borderRadius: 2,
+              borderColor: submit
+                ? ((pickingList.length === 0) ? 'red' : '#ccc')
+                : '#ccc',
               '&:before': {
                 display: 'none',
               },
@@ -692,31 +760,47 @@ export default function WarehouseCalculation() {
                     </Typography>
                     <Typography marginRight={1} color={'gray'}>Container Count 目標容器數量: {pickingList.length}</Typography>
                   </Stack>
-                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }} alignItems={'center'}>
+                  <Stack direction={"row"} gap={2} sx={{ marginRight: 2 }} alignItems={'center'} >
                     {pickingList.length == 0 && <Button type="button" variant="contained" disabled={storage.length == 0} disableElevation onClick={(e) => { e.stopPropagation(); handle_calculate_all(); }}
                       sx={{
                         backgroundColor: 'orange',
-                        fontSize: '0.75rem', // scale down text
-                        padding: '4px 8px',  // scale down padding
-                        minWidth: 'auto',    // prevent fixed size
-                      }}>Pick All 全選 (Best Case)</Button>}
-                      
-                    {pickingList.length>0 && <Stack alignContent={'center'} direction={'row '}><Switch checked={smartRelocation} onClick={(e) => { e.stopPropagation(); handle_relocation_method(); }} ></Switch>
-                    <Typography>Smart Relocation</Typography>
-                    </Stack>}
+                      }}>Pick All 全選</Button>}
+
+                    {pickingList.length > 0 &&
+                      <Stack alignItems={'center'} direction={'column'} sx={{
+                        backgroundColor: '#FAFAFA', padding: 1, borderRadius: 2, border: "1px solid #ccc"
+                      }}
+                        onClick={(e) => { e.stopPropagation(); handle_relocation_method(); }}
+                      >
+                        <Typography sx={{
+                          fontSize: '0.75rem',
+                          minWidth: 'auto'
+                        }}>SMART RELOCATE</Typography>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Typography sx={{
+                            fontSize: '0.75rem',
+                            minWidth: 'auto'
+                          }}>Off</Typography>
+                          <AntSwitch checked={smartRelocation} />
+                          <Typography sx={{
+                            fontSize: '0.75rem',
+                            minWidth: 'auto'
+                          }}>On</Typography>
+                        </Stack>
+                      </Stack>}
                     {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_random_calculate(); }} disableElevation
                       sx={{
                         fontSize: '0.75rem', // scale down text
                         padding: '4px 8px',  // scale down padding
                         minWidth: 'auto',    // prevent fixed size
-                      }}>Random Shuffle <br /> Picking List</Button>}
+                      }}>Random Picking<br /> 隨機挑選</Button>}
                     {pickingList.length > 0 && <Button type="button" variant="contained" disabled={pickingList.length <= 1} onClick={(e) => { e.stopPropagation(); handle_sort_calculate(); }} disableElevation
                       sx={{
                         backgroundColor: 'green',
                         fontSize: '0.75rem', // scale down text
                         padding: '4px 8px',  // scale down padding
                         minWidth: 'auto',    // prevent fixed size
-                      }}>Sort Picking List <br /> (Best Case)</Button>}
+                      }}>Best Pick<br />最優挑選</Button>}
                   </Stack>
                 </Stack>
               </AccordionSummary>
@@ -731,9 +815,9 @@ export default function WarehouseCalculation() {
                     setNewRow={setPickingRows}
                     list={pickingList}
                     setList={setPickingList}
-                    length={length}
-                    breadth={breadth}
-                    height={height}
+                    length={settings.length}
+                    breadth={settings.breadth}
+                    height={settings.height}
                     storage={storage}
                     all_storage={all_storage}
                     port={port}
@@ -762,14 +846,14 @@ export default function WarehouseCalculation() {
                 overflow: 'hidden'
               }}
               elevation={0}
-            >{(length > 0 && breadth > 0 && height > 0 && length * breadth * height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} port={port} robot={robotPosition} />) :
+            >{(settings.length > 0 && settings.breadth > 0 && settings.height > 0 && settings.length * settings.breadth * settings.height <= 2000) ? (<StorageScene storage={storage} all_storage={all_storage} port={port} robot={robotPosition} />) :
               <Grid height={'100%'} alignContent={'center'} margin={1}><Typography>Preview is unavailable for this configuration</Typography></Grid>}
             </Paper>
             <Button onClick={handleFinalSubmit} variant="contained" disableElevation sx={{ backgroundColor: "#dd5716", display: "flex", width: "100%" }}>計算時間</Button>
           </Stack>
-        </Stack>
+        </Stack >
         {result}
       </Stack >
-    </Grid>
+    </Grid >
   );
 }

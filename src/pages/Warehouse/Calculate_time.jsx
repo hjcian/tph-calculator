@@ -1,15 +1,19 @@
-import { Stack, Typography, Divider } from "@mui/material";
-import 'katex/dist/katex.min.css';
-import { BlockMath, InlineMath } from 'react-katex';
+/**
+ *  Calculates time spent for each container in picking list
+ *  This time includes: 
+ *      - M1: Robot Current Position -> Blocking Container (if needed)
+ *      - R: Relocate that container
+ *          *Repeat M1 and R till all blocking containers are removed*
+ *      - M2: Robot Current Position -> Target Pick Container
+ *      - Outbound: Target Pick Container -> Port Location (z+1)    |__ calculated once * 2
+ *      - Inbound: Port Location -> Target Pick's Original Location |
+ */
 
-export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, turn_t, all_storage, storage, pickingList = [], port, robotPosition, smartRelocation) {
-    let time = 0;
+export function calculate_time(x, y, z, movementTimes, all_storage, storage, pickingList = [], port, robotPosition, smartRelocation) {
+    let useful_time = 0;
     let blocking_time = 0;
-    console.log("[NEW CYCLE] x, y, z", x, y, z);
-
-    console.log("ROB", robotPosition);
+    console.log('ALL',all_storage,"storage",storage,"pickingList",pickingList);
     if (storage != []) {
-
         //阻塞容器
         let blocking_container = storage
             .filter(item => item.x === x && item.y === y && item.z < z)
@@ -26,7 +30,9 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
 
         for (let container of blocking_container) {
             //console.log(container.x,container.y,container.z);
-            const target = find_lowest_z_nearest_xy(
+
+            //Find best location to relocate blocking container
+            const target = find_best_location(
                 {
                     x: container.x,
                     y: container.y,
@@ -37,119 +43,93 @@ export function calculate_time(x, y, z, move_t_1, move_t_long, trf_t, climb_t, t
                 });
 
             console.log("target", target);
+
+            // If storage capacity too full, or inappropriate storage configuration, will result in unavailable target
             if (target == null) {
                 throw new Error("Not enough free space in storage. Please remove some containers and try again.");
-            }
+            };
 
-            //from start point to first blocking container
-            blocking_time += point_to_point_time(robotPosition, container, trf_t, climb_t, turn_t, move_t_1, move_t_long, "");
+            // From robot position to blocking container
+            blocking_time += point_to_point_time(robotPosition, container, movementTimes, "");
+
             console.log("Robot Position", robotPosition, "to Blocking Container", container, "is", blocking_time);
-            //console.log("target", container.x, container.y, empty_storage);
-            blocking_time += point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long, "");
+
+            //From blocking container to target location
+            blocking_time += point_to_point_time(container, target, movementTimes, "");
             console.log("Blocking Container", container, "to Target location", target, "is", blocking_time);
 
+            //Update blocking_container
             blocking_container = blocking_container.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
 
+            //Update storage to update container's location
             storage = storage.filter(items => !(items.x === container.x && items.y === container.y && items.z === container.z));
             storage.push(target);
             robotPosition = target;
 
+            //Check if the relocated blocking container is required in subsequent picking
             const index = pickingList.findIndex(
                 item => item.x === container.x && item.y === container.y && item.z === container.z
             );
 
+            // If there is, update its new location so we can locate it in the future
             if (index !== -1) {
                 pickingList[index] = target;
             }
 
+            //Update empty storage
             empty_storage = empty_storage.filter(items => !(items.x === target.x && items.y === target.y && items.z === target.z));
             empty_storage.push(container);
         }
     }
 
-    //
-    //  3 | I| J| K| L|
-    //  2 | H| G| F| E|
-    //  1 | A| B| C| D|
-    //  0 |ws|            
-    //     0   1  2  3
-    //
 
-    if (x >= 0 && y >= 0 && z > 0) {
+    /**
+     * 
+     * Outbound + Inbound 
+     * 
+     * */
 
-        const pointArray = { x, y, z };
+    const pointArray = { x, y, z };
 
-        //travel to container location
-        time += point_to_point_time(robotPosition, pointArray, trf_t, climb_t, turn_t, move_t_1, move_t_long);
+    //travel to container's location
+    useful_time += point_to_point_time(robotPosition, pointArray, movementTimes);
 
-        console.log("Robot from", robotPosition, "to wanted container", pointArray, "is", time);
-        robotPosition = pointArray;
-        //Find nearest port
-        const targetport = find_lowest_z_nearest_xy(
-            {
-                x: x,
-                y: y,
-                locations: port,
-                smartRelocation: true
-            }
-        );
-        console.log("targetWS", targetport);
+    console.log("Robot from", robotPosition, "to wanted container", pointArray, "is", useful_time);
 
-        //travel to port
-        time += point_to_point_time(robotPosition, targetport, trf_t, climb_t, turn_t, move_t_1, move_t_long, "port") * 2;
-        console.log("wanted container", robotPosition, "to WS", targetport, "and back spend", time);
+    robotPosition = pointArray; //Update robot current's position
 
-        // if (x == 0 && y > 0) {  //A Column
-        //     if (y == 1) {
-        //         ///console.log("caseA-1");
-        //         time += move_t_1;
-        //     }
-        //     else {
-        //         ///console.log("caseA-2");
-        //         time += move_t_1 + (y - 1) * move_t_long;
-        //     } //Each additional grid add extra 0.6s 
-        // } else if (x == 1 && y > 0) {  //B Column
-        //     if (y == 1) {
-        //         ///console.log("caseB-1");
-        //         time += move_t_1 + move_t_1 + trf_t;
-        //     }
-        //     else {
-        //         ///console.log("caseB-2");
-        //         time += move_t_1 + move_t_1 + (y - 1) * move_t_long + trf_t;
-        //     }
-        // } else if (x > 1 && y > 0) { //others
+    //Find nearest port
+    const targetport = find_best_location(
+        {
+            x: x,
+            y: y,
+            locations: port,
+            smartRelocation: true
+        }
+    );
 
-        //     if (y == 1) {
-        //         ///console.log("caseC-1");
-        //         time += move_t_1 + (x - 1) * move_t_long + move_t_1 + trf_t;
-        //     }
-        //     else {
-        //         ///console.log("caseC-2");
-        //         time += move_t_1 + (x - 1) * move_t_long + move_t_1 + (y - 1) * move_t_long + trf_t;
-        //     }
-        // }
+    console.log("targetport", targetport);
 
-        // //Vertical Movement
-        // if (y != 0 && z > 0) {
-        //     time += trf_t + z * climb_t + turn_t;
-        // }
-        console.log("Total Time", time);
-        console.log("Total Blocking Time", blocking_time);
-        console.log("Newest Picking List", [...pickingList.map(item => ({ ...item }))]);
-        console.log("Undefiend storage", storage);
+    /**
+     * Travel to port and back
+     * Therefore multiply by 2
+     */
 
-        const updatedPickingList = pickingList.filter(
-            item => !(item.x === x && item.y === y && item.z === z)
-        );
+    useful_time += point_to_point_time(robotPosition, targetport, movementTimes, "port") * 2;
+    console.log("wanted container", robotPosition, "to WS", targetport, "and back spend", useful_time);
 
-        console.log("updatedPickingList", updatedPickingList);
-        console.log("CHECK", [storage, updatedPickingList, robotPosition, time, blocking_time]);
-        return (!isNaN(time) && [storage, updatedPickingList, robotPosition, time, blocking_time]);
-    };
+    const updatedPickingList = pickingList.filter(
+        item => !(item.x === x && item.y === y && item.z === z)
+    );
+
+    console.log("Total Useful_Time (in this cycle):", useful_time);
+    console.log("Total Blocking Time (in this cycle):", blocking_time);
+    console.log("Updated Picking List (in this cycle):", updatedPickingList);
+
+    return (!isNaN(useful_time) && [storage, updatedPickingList, robotPosition, useful_time, blocking_time]);
 }
 
-function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage = [], smartRelocation }) {
-    console.log(smartRelocation);
+function find_best_location({ x, y, locations, pickingList = [], storage = [], smartRelocation }) {
     let closest = null;
     let minZ = Infinity;
     let minSteps = Infinity;
@@ -157,12 +137,15 @@ function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage =
     let oldY = null;
     let minBlocking = Infinity;
 
+    //Sort available location in descending z 
+
     const locs = [...locations].sort((a, b) => {
         if (a.x !== b.x) return a.x - b.x;
         if (a.y !== b.y) return a.y - b.y;
         return b.z - a.z; // descending z
     });
 
+    // For each location in picking list, find number of blocking containers underneath it
     const taggedPickingList = pickingList.map(pick => {
         const blockers = storage.filter(s =>
             s.x === pick.x && s.y === pick.y && s.z < pick.z
@@ -180,6 +163,8 @@ function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage =
 
     const blockerMap = new Map();
 
+    //Set highest amount of blocking containers in each (x,y) stack
+
     for (const pick of taggedPickingList) {
         const key = `${pick.x},${pick.y}`;
         const existing = blockerMap.get(key);
@@ -189,9 +174,8 @@ function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage =
         }
     }
 
-    // Convert map values to array of objects
     for (const [, pick] of blockerMap.entries()) {
-        highestBlockersPerXY.push({ ...pick, blockers: pick.blockers + 1 });
+        highestBlockersPerXY.push({ ...pick, blockers: pick.blockers + 1 }); //+1 because once the container is moved there, it'll increase by 1
     }
 
     console.log("Highest No.of blockers for each location", highestBlockersPerXY);
@@ -200,7 +184,13 @@ function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage =
     for (const item of highestBlockersPerXY) {
         blockerLookup.set(`${item.x},${item.y}`, item.blockers);
     }
+
     if (smartRelocation) {
+        /**
+         * Smart Relocation
+         * Finds the nearest stack which will cause the least blocking when new container is placed there
+         * 
+         * */
         for (const slot of locs) {
             if (!(oldX === slot.x && oldY === slot.y)) {    //check if its same xy as previous target
                 console.log(slot.x, slot.y, slot.z);
@@ -225,6 +215,11 @@ function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage =
             oldY = slot.y;
         }
     } else {
+        /**
+         * Random Relocation
+         * Randomly relocate the container to any available (non-floating) slots
+         * 
+         * */
         const seen = new Set();
         const firstUniqueXYs = [];
 
@@ -245,15 +240,23 @@ function find_lowest_z_nearest_xy({ x, y, locations, pickingList = [], storage =
         closest = { x: randX, y: randY, z: bestZ };
     }
 
-
     return closest;
 }
 
-function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1, move_t_long, mode = "") {
+/**
+ * Calculates time (in seconds) from 1 point to another
+ * current: current location 
+ * target: new location
+ * Default mode is "", else mode="port"
+ */
+
+function point_to_point_time(current, target, movementTimes, mode = "") {
+    const { move_t_1, move_t_long, trf_t, climb_t, turn_t } = movementTimes;
+
     let add_time = 0;
-    let x = container.x;
-    let y = container.y;
-    let z = container.z;
+    let x = current.x;
+    let y = current.y;
+    let z = current.z;
 
     let target_x = target.x;
     let target_y = target.y;
@@ -275,7 +278,7 @@ function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1
             add_time = move_t_1 + (x_distance - 1) * move_t_long + move_t_1 + (y_distance - 1) * move_t_long + trf_t;
         }
         add_time += z * climb_t + trf_t + turn_t;
-        if (mode == "port") {
+        if (mode == "port") { // operator operates at z=1 while port location is at z=0
             add_time += (target_z + 1) * climb_t + trf_t + turn_t;
         } else {
             add_time += (target_z) * climb_t + trf_t + turn_t;
@@ -284,8 +287,13 @@ function point_to_point_time(container, target, trf_t, climb_t, turn_t, move_t_1
     return add_time;
 }
 
+/**
+ * 
+ * Generate random storage based on % provided by user
+ * 
+ */
+
 export function random_storage(length, breadth, height, full_percentage) {
-    console.log('FULL', full_percentage);
     const storage = [];
     const total_bins = length * breadth * height;
     const target_fill = Math.floor(total_bins * full_percentage / 100);
@@ -293,6 +301,7 @@ export function random_storage(length, breadth, height, full_percentage) {
     let attempts = 0;
     const maxAttempts = total_bins * 5;
 
+    //Ensures that container is placed 1 below current container in each (x,y) stack
     const columnMap = new Map(); // key = "x,y", value = next z to fill (starts at height)
 
     const getRandomInt = (min, max) =>
@@ -320,47 +329,6 @@ export function random_storage(length, breadth, height, full_percentage) {
     }
 
     return storage;
-    // let storage = []
-    // const getRandomInt = (min, max) =>
-    //     Math.floor(Math.random() * (max - min + 1)) + min;
-
-    // const total_bins = length * breadth * height;
-    // const target_fill = Math.floor(total_bins * 0.9);
-    // let filled_bins = 0;
-    // let attempts = 0;
-    // const maxAttempts_bins = total_bins * 5;
-
-    // const columnMap = new Map(); 
-
-    // while (filled_bins < target_fill && attempts < maxAttempts_bins) {
-    //     const x = getRandomInt(0, length - 1);
-    //     const y = getRandomInt(1, breadth);
-    //     const key = `${x},${y}`;
-
-    //     // Get current top z level for this column (starts at height)
-    //     let currentZ = columnMap.has(key) ? columnMap.get(key) : height;
-
-    //     // If column is already full (z < 1), skip
-    //     if (currentZ < 1) {
-    //         attempts++;
-    //         continue;
-    //     }
-
-    //     // Decide how many bins to stack this time (1 to currentZ + 1)
-    //     const maxCanAdd = currentZ + 1;
-    //     const remaining = target_fill - filled_bins;
-    //     const binsToAdd = Math.min(getRandomInt(1, maxCanAdd + 1), remaining);
-
-    //     for (let i = 0; i < binsToAdd && currentZ > 0; i++) {
-    //         storage.push({ x, y, z: currentZ });
-    //         currentZ--;
-    //         filled_bins++;
-    //     }
-
-    //     columnMap.set(key, currentZ); // update next z position for this column
-    //     attempts++;
-    // }
-    // return storage;
 }
 
 export default calculate_time;

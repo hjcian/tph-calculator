@@ -21,7 +21,7 @@ const ORDER_FIELD = '單號';        // row
 const PRODUCT_FIELD = '品號';      // column
 const QTY_FIELD = '出貨數量';      // numeric value
 const TOTAL_LABEL = '總計';
-const COUNT_LABEL = '品項';
+const COUNT_LABEL = '品項數量';
 
 function parseAsDate(value) {
   if (value instanceof Date && !isNaN(value)) return value;
@@ -342,6 +342,50 @@ export default function Orders({
     }));
   }, [filteredRows, idxDate, idxOrder, hasNeededCols]);
 
+  const monthlySKUAverages = useMemo(() => {
+    if (!hasNeededCols || filteredRows.length <= 1 || idxDate < 0 || idxProduct < 0 || idxQty < 0) return [];
+
+    // Step 1: group rows by date
+    const dailyData = {};
+    for (let i = 1; i < filteredRows.length; i++) {
+      const row = filteredRows[i];
+      const date = parseAsDate(row[idxDate]);
+      if (!date) continue;
+      const dayKey = dayjs(date).format('YYYY-MM-DD');
+      if (!dailyData[dayKey]) dailyData[dayKey] = [];
+      dailyData[dayKey].push(row);
+    }
+
+    // Step 2: for each day, count distinct products with non-zero quantity
+    const dailyProductCounts = {};
+    for (const [dayKey, rows] of Object.entries(dailyData)) {
+      const productSet = new Set();
+      for (const row of rows) {
+        const qty = Number(row[idxQty]) || 0;
+        if (qty !== 0) {
+          productSet.add(row[idxProduct]);
+        }
+      }
+      dailyProductCounts[dayKey] = productSet.size;
+    }
+
+    // Step 3: group by month and calculate average product count
+    const monthlyTotals = {};
+    const monthlyDays = {};
+
+    for (const [dayKey, count] of Object.entries(dailyProductCounts)) {
+      const monthKey = dayKey.slice(0, 7);
+      monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + count;
+      monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
+    }
+
+    return Object.keys(monthlyTotals).sort().map((month) => ({
+      month,
+      avgProducts: (monthlyTotals[month] / monthlyDays[month]).toFixed(2),
+    }));
+  }, [filteredRows, idxDate, idxProduct, idxQty, hasNeededCols]);
+
+
 
   return (
     <Stack spacing={3}>
@@ -448,7 +492,7 @@ export default function Orders({
           <Typography variant="body2">出貨總量: {pivotData.grandTotal.toLocaleString()}</Typography>
           <Typography variant="body2">品項總數合計: {pivotData.units.toLocaleString()}</Typography>
           <Typography variant="body2">篩選後單號數: {uniqueOrderCount}</Typography>
-          
+
           {monthlyAverages.length > 0 && (
             <Box>
               <Typography variant="h6">每月平均單數 (每日平均)</Typography>
@@ -456,6 +500,19 @@ export default function Orders({
                 {monthlyAverages.map((m) => (
                   <Typography key={m.month} variant="body2">
                     {m.month}: {m.avg} 單/天
+                  </Typography>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {monthlySKUAverages.length > 0 && (
+            <Box>
+              <Typography variant="h6">每月平均品項數量 (每日)</Typography>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {monthlySKUAverages.map((m) => (
+                  <Typography key={m.month} variant="body2">
+                    {m.month}: {m.avgProducts} 品項/天
                   </Typography>
                 ))}
               </Stack>

@@ -36,6 +36,7 @@ export default function InputRowsSection({
     const y = parseFloat(newRow.y);
     const z = parseFloat(newRow.z);
 
+
     const isDuplicate = list.some(
       (item) => item.x === x && item.y === y && item.z === z
     );
@@ -66,7 +67,6 @@ export default function InputRowsSection({
           }
         }
         if (type === 'storage') {
-          console.log(length * breadth * height);
           if (storage.length + 1 > length * breadth * height * 0.9) {
             alert(`庫存已達上限的 90%，請先清空部分空間再新增容器\nStorage space is 90% full. Please free up space before adding new containers.`)
             return;
@@ -199,9 +199,12 @@ export default function InputRowsSection({
     }
     const randomIndex = Math.floor(Math.random() * combinedPositions.length);
     const chosenPosition = combinedPositions[randomIndex];
+
+    console.log("choose",chosenPosition);
     setList([chosenPosition]);
     setNewRow(chosenPosition);
   }
+
   return (
     <>
       {showRows && (
@@ -210,10 +213,10 @@ export default function InputRowsSection({
             <Grid key={axis} sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
               <Typography>{axis}:</Typography>
               <TextField
-                name={axis}
+                name={axis} 
                 type="number"
                 fullWidth
-                value={newRow[axis]}
+                value={newRow[axis] || ''}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === '' || Number.isInteger(Number(value))) {

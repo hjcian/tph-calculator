@@ -107,7 +107,7 @@ export default function Slot() {
 
   return (
     <Stack direction={"column"} gap={2}>
-      <Typography>情景：假設共有 1600 SKU 隨機被放進 400 個 4 格箱中。欲出貨 16 SKU,則需要出几箱？</Typography>
+      <Typography>情景：假設共有 1600 SKU 隨機被放進 400 個 4 格箱中。欲出貨 600 SKU,則需要出几箱？</Typography>
       {/* Inputs */}
       <Stack direction={"row"} alignItems={"center"} gap={1}>
         <Typography>SKU 數量:</Typography>
