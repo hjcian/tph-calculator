@@ -20,19 +20,19 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
 
     const isStored = (item) =>
         storage.some(s => s.x === item.x && s.y === item.y && s.z === item.z);
-    console.log("all:", all_storage);
     const floorOffsetZ = -0.35; // slightly above the floor mesh
 
     // Compute max X and max Y from all_storage for labeling range
-    const maxX = Math.max(...all_storage.map(item => item.x));
-    const maxY = Math.max(...all_storage.map(item => item.y));
+    const maxX = React.useMemo(() => Math.max(...all_storage.map(item => item.x)), [all_storage]);
+    const maxY = React.useMemo(() => Math.max(...all_storage.map(item => item.y)), [all_storage]);
 
-    const uniqueXY = Array.from(
-        new Set(all_storage.map(item => `${item.x},${item.y}`))
-    ).map(str => {
-        const [x, y] = str.split(',').map(Number);
-        return { x, y, z: 0 };
-    });
+    const uniqueXY = React.useMemo(() => {
+        const set = new Set(all_storage.map(({ x, y }) => `${x},${y}`));
+        return Array.from(set).map(str => {
+            const [x, y] = str.split(',').map(Number);
+            return { x, y, z: 0 };
+        });
+    }, [all_storage]);
 
     const tileSize = 1.5;
     const tileHeight = 0.1;
@@ -133,7 +133,7 @@ const StorageScene = React.memo(function StorageScene({ storage, all_storage = [
 
             {port.map((item, index) => {
                 const maxX = Math.max(...all_storage.map(item => item.x));
-                const basePos = [(maxX - item.x) * 1.7, item.y * 1.7, item.z* 1.2];
+                const basePos = [(maxX - item.x) * 1.7, item.y * 1.7, item.z * 1.2];
                 return (
                     <mesh key={`ws-${index}`} position={[basePos[0], basePos[1], basePos[2] + 0.8]}>
                         <boxGeometry args={[1.5, 1.5, 0.1]} /> {/* Same as dark gray floor */}

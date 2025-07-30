@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
-import logo from './assets/image/TAC-Dynamics.jpg';
+import logo from '../assets/image/TAC-Dynamics.jpg';
 
 import {
   Box,
@@ -59,6 +59,10 @@ export default function TemporaryDrawer() {
     </Box>
   );
 
+  const goHome = () => {
+    navigate('/');
+  };
+
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
@@ -78,7 +82,7 @@ export default function TemporaryDrawer() {
               </IconButton>
               <Box
                 component="img"
-                src={logo} 
+                src={logo}
                 alt="Logo"
                 sx={{ height: 40, mr: 2 }}
               />
@@ -86,7 +90,7 @@ export default function TemporaryDrawer() {
                 TAC Dynamics
               </Typography>
             </Stack>
-            <IconButton variant="contained" ><HomeIcon sx={{ color: 'white' }}/></IconButton>
+            <IconButton variant="contained" onClick={goHome} ><HomeIcon sx={{ color: 'white' }} /></IconButton>
           </Stack>
 
         </Toolbar>

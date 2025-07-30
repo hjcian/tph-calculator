@@ -10,8 +10,6 @@ This tool is used to calculate efficiency based on warehouse configuration and r
 - Customisable Robot configuration and its starting point
 - Customise picking sequence with ability to randomise and sorted (Best Case)
 - Ability to Smart Relocate blocking containers
-    - Relocation Method:
-        - Look through subsequent picking and choose stack with minimal blocking
 
 ## Calculation Model
 The tool uses a **simplified single-robot time model**, broken into the following components:
@@ -74,3 +72,14 @@ $$
                                          ...|clash_in|Ws|
 ⟨───────────────────────── 1h ───────────────────────────⟩
                                          </pre>
+---
+## Relocation Method
+There are 2 methods for relocation:
+#### 1. Smart Relocation
+To reduce future relocation, containers are relocated to stacks with available spaces that are least likely to interfere with upcoming picks, as determined by analysing the picking list.
+
+#### 2. Random Relocation
+Containers are randomly relocated to a stack to its highest possible position.
+
+---
+

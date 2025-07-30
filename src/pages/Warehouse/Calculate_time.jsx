@@ -12,7 +12,7 @@
 export function calculate_time(x, y, z, movementTimes, all_storage, storage, pickingList = [], port, robotPosition, smartRelocation) {
     let useful_time = 0;
     let blocking_time = 0;
-
+    console.log('ALL',all_storage,"storage",storage,"pickingList",pickingList);
     if (storage != []) {
         //阻塞容器
         let blocking_container = storage
