@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Backdrop } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import { LoadingCircle } from '../../components/Loading.jsx';
+import { LoadingCircle } from '../../Components/Loading.jsx';
 
 //Functions
 import { calculate_time, random_storage } from './Calculate_time.jsx';
