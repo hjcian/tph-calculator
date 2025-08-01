@@ -1,18 +1,18 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { TextField, Paper, Grid, Button, Stack, Divider, Typography, Alert, Snackbar, Box, Backdrop } from '@mui/material';
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import { LoadingCircle } from '../../Components/Loading.jsx';
+import { LoadingCircle } from '../../component/Loading.jsx';
 
 //Functions
 import { calculate_time, random_storage } from './Calculate_time.jsx';
 import { display_result } from './Display_result.jsx'
 
 //Reusable components
-import { AntSwitch } from '../../components/AntSwitch.jsx';
-import CustomizedDialogs from '../../components/Dialog.jsx'; // not reusable yet!
-import InputRowsSection from '../../components/Input_Rows.jsx';
-import StorageTable from '../../components/table.jsx';
-import StorageScene from '../../components/3d.jsx'; // not reusable yet!
+import { AntSwitch } from '../../component/AntSwitch.jsx';
+import CustomizedDialogs from '../../component/Dialog.js'; // not reusable yet!
+import InputRowsSection from '../../component/Input_Rows.js';
+import StorageTable from '../../component/table.js';
+import StorageScene from '../../component/3d.js'; // not reusable yet!
 
 //Icons
 import WarehouseIcon from '@mui/icons-material/Warehouse';
@@ -316,7 +316,7 @@ export default function WarehouseCalculation() {
 
   function calculate(calculate_storage = []) {
     console.log("Robot position", robotPosition);
-    setResult('');
+    //setResult('');
 
     let time = 0;
     let relocate_time = 0;
