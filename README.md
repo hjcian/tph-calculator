@@ -82,4 +82,51 @@ To reduce future relocation, containers are relocated to stacks with available s
 Containers are randomly relocated to a stack to its highest possible position.
 
 ---
+# Installation Guide
 
+1. Download and install [Node.js](https://nodejs.org/zh-tw/download)
+2. Clone repository
+```
+git clone https://github.com/hjcian/tph-calculator.git
+cd tph-calculator
+```
+3. Install dependencies
+```
+npm install
+```
+4. Run App Locally 
+Build App:
+``` 
+npm run build
+```
+For preview (http://localhost:4173/):
+```
+npm run preview
+```
+For development (http://localhost:5173/):
+```
+npm run dev
+```
+
+
+# Technical Documents
+For technical documents, refer to [README.md](src\README.md)
+
+Simplified Code structure:
+
+```
+TPH-Calculator/
+
+├── src/                          # Source code
+│   ├── assets/                   # Images, logos, or static resources
+│   ├── components/               # Reusable UI components (e.g., AntSwitch, Dialogs)
+│   ├── pages/                    # Page-level components (e.g., Home, Orders, Slot)
+│   ├── styles/                   # Global styles, theme settings (CSS/SCSS/StyledComponents)
+│   ├── App.jsx                   
+│   ├── App.css                   
+│   ├── main.jsx                  # React app entry point
+│   ├── index.css                 # Base styling
+│   └── README.md                 # Software ReadME
+│
+├── README.md                     # Overall Project overview
+```

@@ -12,7 +12,7 @@
 export function calculate_time(x, y, z, movementTimes, all_storage, storage, pickingList = [], port, robotPosition, smartRelocation) {
     let useful_time = 0;
     let blocking_time = 0;
-    console.log('ALL',all_storage,"storage",storage,"pickingList",pickingList);
+    console.log('ALL', all_storage, "storage", storage, "pickingList", pickingList);
     if (storage != []) {
         //阻塞容器
         let blocking_container = storage
@@ -47,8 +47,7 @@ export function calculate_time(x, y, z, movementTimes, all_storage, storage, pic
             // If storage capacity too full, or inappropriate storage configuration, will result in unavailable target
             if (target == null) {
                 throw new Error("Not enough free space in storage. Please remove some containers and try again.");
-            };
-
+            }
             // From robot position to blocking container
             blocking_time += point_to_point_time(robotPosition, container, movementTimes, "");
 
@@ -104,7 +103,8 @@ export function calculate_time(x, y, z, movementTimes, all_storage, storage, pic
             x: x,
             y: y,
             locations: port,
-            smartRelocation: true
+            smartRelocation: true,
+            mode: "port"
         }
     );
 
@@ -129,9 +129,9 @@ export function calculate_time(x, y, z, movementTimes, all_storage, storage, pic
     return (!isNaN(useful_time) && [storage, updatedPickingList, robotPosition, useful_time, blocking_time]);
 }
 
-function find_best_location({ x, y, locations, pickingList = [], storage = [], smartRelocation }) {
+function find_best_location({ x, y, locations, pickingList = [], storage = [], smartRelocation, mode = "" }) {
+
     let closest = null;
-    let minZ = Infinity;
     let minSteps = Infinity;
     let oldX = null;
     let oldY = null;
@@ -185,6 +185,17 @@ function find_best_location({ x, y, locations, pickingList = [], storage = [], s
         blockerLookup.set(`${item.x},${item.y}`, item.blockers);
     }
 
+    const lowestInStack = {};
+    //get the lowest z in each stack
+    for (const item of storage) {
+        const key = `${item.x},${item.y}`;
+        if (!(key in lowestInStack)) {
+            lowestInStack[key] = item.z;
+        } else {
+            lowestInStack[key] = Math.min(lowestInStack[key], item.z);
+        }
+    }
+
     if (smartRelocation) {
         /**
          * Smart Relocation
@@ -201,6 +212,10 @@ function find_best_location({ x, y, locations, pickingList = [], storage = [], s
                 const key = `${slot.x},${slot.y}`;
                 let blockers = blockerLookup.has(key) ? blockerLookup.get(key) : 0;
                 console.log("No.of blockers for this location", blockers);
+
+                if (mode !== 'port') {
+                    if (slot.z >= lowestInStack[key]) continue;
+                }
 
                 if (
                     blockers < minBlocking ||
