@@ -9,10 +9,11 @@ import { display_result } from './Display_result.jsx'
 
 //Reusable components
 import { AntSwitch } from '../../component/AntSwitch.jsx';
-import CustomizedDialogs from '../../component/Dialog.js'; // not reusable yet!
-import InputRowsSection from '../../component/Input_Rows.js';
-import StorageTable from '../../component/table.js';
-import StorageScene from '../../component/3d.js'; // not reusable yet!
+
+import CustomizedDialogs from '../../component/Dialog.jsx'; // not reusable yet!
+import InputRowsSection from '../../component/Input_Rows.jsx';
+import StorageTable from '../../component/table.jsx';
+import StorageScene from '../../component/3d.jsx'; // not reusable yet!
 
 //Icons
 import WarehouseIcon from '@mui/icons-material/Warehouse';
