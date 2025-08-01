@@ -8,6 +8,7 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  Paper
 } from '@mui/material';
 import { FixedSizeGrid as Grid } from 'react-window';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -21,7 +22,7 @@ const ORDER_FIELD = '單號';        // row
 const PRODUCT_FIELD = '品號';      // column
 const QTY_FIELD = '出貨數量';      // numeric value
 const TOTAL_LABEL = '總計';
-const COUNT_LABEL = '品項數量';
+const COUNT_LABEL = 'SKU數量';
 
 function parseAsDate(value) {
   if (value instanceof Date && !isNaN(value)) return value;
@@ -468,201 +469,212 @@ export default function Orders({
   }, [filteredRows, idxDate, idxOrder, idxQty, hasNeededCols]);
 
 
-
-
   return (
-    <Stack spacing={3}>
-      {/* File Input */}
-      <Stack direction="row" spacing={2} alignItems="center">
-        <input
-          type="file"
-          accept={accept}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-        <Button
-          variant="contained"
-          disabled={loading}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          {loading ? 'Reading…' : label}
-        </Button>
-        {loading && <CircularProgress size={20} />}
-        {fileName && <Typography variant="body2">{fileName}</Typography>}
-        {errorMsg && (
-          <Typography variant="body2" color="error">
-            {errorMsg}
-          </Typography>
-        )}
-      </Stack>
-
-      {excelData && (
-        <Typography variant="body1">
-          結果筆數 ("{productList}"): {productListRowCount}
-        </Typography>
-      )}
-
-      {/* Sheet Selector */}
-      {excelData && excelData.sheetNames.length > 1 && (
-        <Box>
-          <Typography variant="h6">Sheet:</Typography>
-          <Select
-            size="small"
-            value={activeSheet}
-            onChange={(e) => setActiveSheet(e.target.value)}
-            sx={{ minWidth: 240 }}
+    <Paper
+      sx={{
+        height: '100%',
+        border: '1px solid #ccc',
+        borderRadius: 2,
+        boxShadow: 'none',
+        transition: 'height 0.3s ease',
+        display: 'flex',
+        alignItems: 'stretch',
+        overflow: 'hidden',
+        padding: 1
+      }}
+      elevation={0}
+    >
+      <Stack spacing={3} direction={"column"} alignItems="center">
+        {/* File Input */}
+        <Stack direction="row" gap={2} alignItems="center">
+          <input
+            type="file"
+            accept={accept}
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <Button
+            variant="contained"
+            disabled={loading}
+            onClick={() => fileInputRef.current?.click()}
           >
-            {excelData.sheetNames.map((name) => (
-              <MenuItem key={name} value={name}>
-                {name}
-              </MenuItem>
-            ))}
-          </Select>
-        </Box>
-      )}
+            {loading ? 'Reading…' : label}
+          </Button>
+          {loading && <CircularProgress size={20} />}
+          {fileName && <Typography variant="body2">{fileName}</Typography>}
+          {errorMsg && (
+            <Typography variant="body2" color="error">
+              {errorMsg}
+            </Typography>
+          )}
+        </Stack>
 
-      {/* Date Picker */}
-      {sheetRows && sheetRows.length > 1 && (
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h6">日期:</Typography>
+        {/* Sheet Selector */}
+        {excelData && excelData.sheetNames.length > 1 && (
+          <Stack direction={'row'} gap={1}>
+            <Typography variant="h6">工作表:</Typography>
             <Select
               size="small"
-              value={selectedDate ? dayjs(selectedDate).format('YYYY-MM-DD') : ''}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSelectedDate(v === '' ? null : dayjs(v));
-              }}
-              displayEmpty
-              sx={{ minWidth: 160 }}
+              value={activeSheet}
+              onChange={(e) => setActiveSheet(e.target.value)}
+              sx={{ minWidth: 240 }}
             >
-              <MenuItem value="">
-                <em>全部日期 All Dates</em>
-              </MenuItem>
-              {uniqueDates.map((d) => (
-                <MenuItem key={d} value={d}>
-                  {d}
+              {excelData.sheetNames.map((name) => (
+                <MenuItem key={name} value={name}>
+                  {name}
                 </MenuItem>
               ))}
             </Select>
-            <DatePicker
-              label="選擇日期"
-              value={selectedDate}
-              onChange={(newValue) => setSelectedDate(newValue)}
-              format="YYYY-MM-DD"
-              slotProps={{ textField: { size: 'small' } }}
-            />
           </Stack>
-        </LocalizationProvider>
-      )}
+        )}
 
-      {sheetRows.length > 1 && (
-        <Typography variant="body2" color="text.secondary">
-          篩選後筆數: {filteredCount}
-        </Typography>
-      )}
-
-      {excelData && !hasNeededCols && (
-        <Alert severity="warning" sx={{ maxWidth: 600 }}>
-          找不到必要欄位：需要「{ORDER_FIELD}」、「{PRODUCT_FIELD}」、「{QTY_FIELD}」。
-          目前標題：{sheetHeaders.join(', ')}。
-        </Alert>
-      )}
-
-      {pivotData && (
-        <>
-          <Typography variant="body2">出貨總量: {pivotData.grandTotal.toLocaleString()}</Typography>
-          <Typography variant="body2">品項總數合計: {pivotData.units.toLocaleString()}</Typography>
-          <Typography variant="body2">篩選後單號數: {uniqueOrderCount}</Typography>
-
-          {monthlyAverages.length > 0 && (
-            <Box>
-              <Typography variant="h6">每月平均單數 (每日平均)</Typography>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {monthlyAverages.map((m) => (
-                  <Typography key={m.month} variant="body2">
-                    {m.month}: {m.avg} 單/天
-                  </Typography>
+        {/* Date Picker */}
+        {sheetRows && sheetRows.length > 1 && (
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="h6">日期:</Typography>
+              <Select
+                size="small"
+                value={selectedDate ? dayjs(selectedDate).format('YYYY-MM-DD') : ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSelectedDate(v === '' ? null : dayjs(v));
+                }}
+                displayEmpty
+                sx={{ minWidth: 160 }}
+              >
+                <MenuItem value="">
+                  <em>全部日期 All Dates</em>
+                </MenuItem>
+                {uniqueDates.map((d) => (
+                  <MenuItem key={d} value={d}>
+                    {d}
+                  </MenuItem>
                 ))}
-              </Stack>
-            </Box>
-          )}
+              </Select>
+              <DatePicker
+                label="選擇日期"
+                value={selectedDate}
+                onChange={(newValue) => setSelectedDate(newValue)}
+                format="YYYY-MM-DD"
+                slotProps={{ textField: { size: 'small' } }}
+              />
+            </Stack>
+          </LocalizationProvider>
+        )}
 
-          {monthlySKUAverages.length > 0 && (
-            <Box>
-              <Typography variant="h6">每月平均品項數量 (每日)</Typography>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {monthlySKUAverages.map((m) => (
-                  <Typography key={m.month} variant="body2">
-                    {m.month}: {m.avgProducts} 品項/天
-                  </Typography>
-                ))}
-              </Stack>
-            </Box>
-          )}
+        {excelData && (
+          <Typography variant="body1">
+            共{productListRowCount} SKU  【{productList}】
+          </Typography>
+        )}
 
-          {monthlyCountAverages.length > 0 && (
-            <Box>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {monthlyCountAverages.map((m) => (
-                  <Typography key={m.month} variant="body2">
-                    {m.month}: {m.avgCountA} sku/單
-                  </Typography>
-                ))}
-              </Stack>
-            </Box>
-          )}
+        {pivotData && (
+          <>
+            <Typography variant="body2">Total Units: {pivotData.grandTotal.toLocaleString()}</Typography>
+            <Typography variant="body2">出庫SKU次數: {pivotData.units.toLocaleString()}</Typography>
+            <Typography variant="body2">出庫單數量: {uniqueOrderCount}</Typography>
+            {!selectedDate && <Typography variant="h6">每月平均數據</Typography>}
 
-          {avgUnitsPerMonth.length > 0 && (
-            <Box>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {avgUnitsPerMonth.map((m) => (
-                  <Typography key={m.month} variant="body2">
-                    {m.month}: {m.avgUnits} units/單
-                  </Typography>
-                ))}
-              </Stack>
-            </Box>
-          )}
+            <Stack direction={'row'} gap={10}>
+              {!selectedDate && monthlyAverages.length > 0 && (
+                <Box>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {monthlyAverages.map((m) => (
+                      <Typography key={m.month} variant="body2">
+                        {m.month}: {m.avg} 單/天
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
 
-          {avgUnitsPerMonth.length > 0 && monthlyCountAverages.length > 0 && (
-            <Box>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {avgUnitsPerMonth.map((m) => {
-                  const match = monthlyCountAverages.find((x) => x.month === m.month);
-                  if (!match) return null;
+              {!selectedDate && monthlySKUAverages.length > 0 && (
+                <Box>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {monthlySKUAverages.map((m) => (
+                      <Typography key={m.month} variant="body2">
+                        {m.month}: {m.avgProducts} SKU/天
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
 
-                  const units = parseFloat(m.avgUnits);
-                  const skus = parseFloat(match.avgCountA);
-                  const unitsPerSku = skus > 0 ? (units / skus).toFixed(2) : '—';
+            <Stack direction={'row'} gap={10}>
+              {!selectedDate && monthlyCountAverages.length > 0 && (
+                <Box>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {monthlyCountAverages.map((m) => (
+                      <Typography key={m.month} variant="body2">
+                        {m.month}: {m.avgCountA} sku/單
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
 
-                  return (
-                    <Typography key={m.month} variant="body2">
-                      {m.month}: {unitsPerSku} units/skus
-                    </Typography>
-                  );
-                })}
-              </Stack>
-            </Box>
-          )}
-
-
-          <VirtualPivotGrid
-            pivot={pivotData}
-            height={600}
-            cellWidth={80}
-            rowHeight={28}
-          />
-        </>
-      )}
+              {!selectedDate && avgUnitsPerMonth.length > 0 && (
+                <Box>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {avgUnitsPerMonth.map((m) => (
+                      <Typography key={m.month} variant="body2">
+                        {m.month}: {m.avgUnits} units/單
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
 
 
-      {!loading && excelData && !pivotData && (
-        <Typography variant="body2" color="text.secondary">
-          沒有符合日期的資料。
-        </Typography>
-      )}
-    </Stack>
+            {!selectedDate && avgUnitsPerMonth.length > 0 && monthlyCountAverages.length > 0 && (
+              <Box>
+                <Stack spacing={1} sx={{ mt: 1 }}>
+                  {avgUnitsPerMonth.map((m) => {
+                    const match = monthlyCountAverages.find((x) => x.month === m.month);
+                    if (!match) return null;
+
+                    const units = parseFloat(m.avgUnits);
+                    const skus = parseFloat(match.avgCountA);
+                    const unitsPerSku = skus > 0 ? (units / skus).toFixed(2) : '—';
+
+                    return (
+                      <Typography key={m.month} variant="body2">
+                        {m.month}: {unitsPerSku} units/skus
+                      </Typography>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
+
+            <VirtualPivotGrid
+              pivot={pivotData}
+              height={600}
+              cellWidth={80}
+              rowHeight={28}
+            />
+          </>
+        )}
+
+
+        {!loading && excelData && !pivotData && (
+          <Typography variant="body2" color="text.secondary">
+            沒有符合日期的資料。
+          </Typography>
+        )}
+
+        {excelData && !hasNeededCols && (
+          <Alert severity="warning" sx={{ maxWidth: 600 }}>
+            找不到必要欄位：需要「{ORDER_FIELD}」、「{PRODUCT_FIELD}」、「{QTY_FIELD}」。
+            目前標題：{sheetHeaders.join(', ')}。
+          </Alert>
+        )}
+
+      </Stack>
+    </Paper>
   );
 }
