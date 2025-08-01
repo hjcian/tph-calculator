@@ -98,6 +98,8 @@ function addTotalsAndCounts(rows, columns) {
     return { ...r, [TOTAL_LABEL]: sum, [COUNT_LABEL]: nonZeroCount };
   });
 
+
+
   // Column totals
   const totalRow = { rowLabel: TOTAL_LABEL };
   let totalRowNonZeroCount = 0;
@@ -385,6 +387,87 @@ export default function Orders({
     }));
   }, [filteredRows, idxDate, idxProduct, idxQty, hasNeededCols]);
 
+  const monthlyCountAverages = useMemo(() => {
+    if (!hasNeededCols || filteredRows.length <= 1 || idxDate < 0 || idxOrder < 0 || idxProduct < 0 || idxQty < 0) return [];
+
+    // Step 1: group rows by date and order
+    const dailyOrderMap = {}; // { "2025-07-15": { order1: Set(products), order2: Set(products) } }
+
+    for (let i = 1; i < filteredRows.length; i++) {
+      const row = filteredRows[i];
+      const date = parseAsDate(row[idxDate]);
+      const order = row[idxOrder];
+      const product = row[idxProduct];
+      const qty = Number(row[idxQty]) || 0;
+
+      if (!date || !order || qty === 0) continue;
+
+      const dayKey = dayjs(date).format('YYYY-MM-DD');
+      if (!dailyOrderMap[dayKey]) dailyOrderMap[dayKey] = {};
+      if (!dailyOrderMap[dayKey][order]) dailyOrderMap[dayKey][order] = new Set();
+
+      dailyOrderMap[dayKey][order].add(product);
+    }
+
+    // Step 2: sum up 品項數量 per order per day
+    const dailyCountA = {}; // { "2025-07-15": [3, 5, 4] }
+    for (const [dayKey, orders] of Object.entries(dailyOrderMap)) {
+      dailyCountA[dayKey] = Object.values(orders).map((productSet) => productSet.size);
+    }
+
+    // Step 3: group by month and compute average
+    const monthlyTotals = {};
+    const monthlyCounts = {};
+
+    for (const [dayKey, counts] of Object.entries(dailyCountA)) {
+      const monthKey = dayKey.slice(0, 7);
+      const sum = counts.reduce((a, b) => a + b, 0);
+      const count = counts.length;
+
+      monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + sum;
+      monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + count;
+    }
+
+    return Object.keys(monthlyTotals).sort().map((month) => ({
+      month,
+      avgCountA: (monthlyTotals[month] / monthlyCounts[month]).toFixed(2),
+    }));
+  }, [filteredRows, idxDate, idxOrder, idxProduct, idxQty, hasNeededCols]);
+
+  const avgUnitsPerMonth = useMemo(() => {
+    if (!hasNeededCols || filteredRows.length <= 1 || idxDate < 0 || idxOrder < 0 || idxQty < 0) return [];
+
+    const monthlyTotals = {};
+    const monthlyOrderSets = {};
+
+    for (let i = 1; i < filteredRows.length; i++) {
+      const row = filteredRows[i];
+      const date = parseAsDate(row[idxDate]);
+      const order = row[idxOrder];
+      const qty = Number(row[idxQty]) || 0;
+
+      if (!date || !order) continue;
+
+      const monthKey = dayjs(date).format('YYYY-MM');
+
+      if (!monthlyTotals[monthKey]) {
+        monthlyTotals[monthKey] = 0;
+        monthlyOrderSets[monthKey] = new Set();
+      }
+
+      monthlyTotals[monthKey] += qty;
+      monthlyOrderSets[monthKey].add(order);
+    }
+
+    return Object.entries(monthlyTotals).map(([month, totalUnits]) => ({
+      month,
+      avgUnits: (totalUnits / monthlyOrderSets[month].size).toFixed(2),
+      totalUnits,
+      orderCount: monthlyOrderSets[month].size,
+    }));
+  }, [filteredRows, idxDate, idxOrder, idxQty, hasNeededCols]);
+
+
 
 
   return (
@@ -519,6 +602,52 @@ export default function Orders({
             </Box>
           )}
 
+          {monthlyCountAverages.length > 0 && (
+            <Box>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {monthlyCountAverages.map((m) => (
+                  <Typography key={m.month} variant="body2">
+                    {m.month}: {m.avgCountA} sku/單
+                  </Typography>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {avgUnitsPerMonth.length > 0 && (
+            <Box>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {avgUnitsPerMonth.map((m) => (
+                  <Typography key={m.month} variant="body2">
+                    {m.month}: {m.avgUnits} units/單
+                  </Typography>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {avgUnitsPerMonth.length > 0 && monthlyCountAverages.length > 0 && (
+            <Box>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {avgUnitsPerMonth.map((m) => {
+                  const match = monthlyCountAverages.find((x) => x.month === m.month);
+                  if (!match) return null;
+
+                  const units = parseFloat(m.avgUnits);
+                  const skus = parseFloat(match.avgCountA);
+                  const unitsPerSku = skus > 0 ? (units / skus).toFixed(2) : '—';
+
+                  return (
+                    <Typography key={m.month} variant="body2">
+                      {m.month}: {unitsPerSku} units/skus
+                    </Typography>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )}
+
+
           <VirtualPivotGrid
             pivot={pivotData}
             height={600}
@@ -527,6 +656,7 @@ export default function Orders({
           />
         </>
       )}
+
 
       {!loading && excelData && !pivotData && (
         <Typography variant="body2" color="text.secondary">
